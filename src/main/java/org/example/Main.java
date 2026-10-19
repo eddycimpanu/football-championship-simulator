@@ -1,12 +1,15 @@
 package org.example;
 
+import org.example.model.Coach;
 import org.example.model.DetailedPosition;
 import org.example.model.FieldRole;
+import org.example.model.Formation;
 import org.example.model.Person;
 import org.example.model.Player;
 import org.example.model.PlayerAttributes;
 import org.example.model.PlayerStatus;
 import org.example.model.PreferredFoot;
+import org.example.model.Referee;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -25,10 +28,11 @@ public class Main {
         testCondition();
         testStatus();
         testValidation();
+        testFormations();
+        testCoachAndReferee();
         testPolymorphism();
     }
 
-    // 1. Conexiunea la baza de date
     private static void testDatabaseConnection() {
         printTitle("Database connection");
         Properties dbProperties = loadDatabaseProperties();
@@ -44,7 +48,6 @@ public class Main {
         }
     }
 
-    // 2. Crearea unui jucator si citirea datelor lui
     private static void testPlayer() {
         printTitle("Player");
         Player messi = createMessi();
@@ -59,7 +62,6 @@ public class Main {
         System.out.println("Dribbling: " + messi.getAttributes().dribbling());
     }
 
-    // 3. Fiecare pozitie detaliata are rolul corect
     private static void testFieldRoles() {
         printTitle("Field roles");
         for (DetailedPosition position : DetailedPosition.values()) {
@@ -73,7 +75,6 @@ public class Main {
         System.out.println("Check: " + (correct ? "OK" : "FAILED"));
     }
 
-    // 4. Conditia scade si creste, dar ramane intre 0 si 100
     private static void testCondition() {
         printTitle("Condition");
         Player messi = createMessi();
@@ -87,7 +88,6 @@ public class Main {
         System.out.println("After -150: " + messi.getCondition() + " (min is 0)");
     }
 
-    // 5. Statusul jucatorului (disponibil / accidentat)
     private static void testStatus() {
         printTitle("Status");
         Player messi = createMessi();
@@ -97,7 +97,6 @@ public class Main {
         System.out.println("Status: " + messi.getStatus() + ", available: " + messi.isAvailable());
     }
 
-    // 6. Datele invalide sunt respinse
     private static void testValidation() {
         printTitle("Validation (every line should be an expected error)");
 
@@ -131,12 +130,48 @@ public class Main {
         } catch (IllegalArgumentException e) {
             System.out.println("Expected error: " + e.getMessage());
         }
+
+        try {
+            new Referee(5, "Test", "Referee", "Romania", 40, 150);
+            System.out.println("FAILED: strictness 150 was accepted");
+        } catch (IllegalArgumentException e) {
+            System.out.println("Expected error: " + e.getMessage());
+        }
+
+        try {
+            new Coach(6, "Test", "Coach", "Romania", 50, null);
+            System.out.println("FAILED: null formation was accepted");
+        } catch (IllegalArgumentException e) {
+            System.out.println("Expected error: " + e.getMessage());
+        }
     }
 
-    // 7. Polimorfism: un Player tinut intr-o variabila de tip Person
+    private static void testFormations() {
+        printTitle("Formations");
+        for (Formation formation : Formation.values()) {
+            System.out.println(formation
+                    + " | GK: " + formation.countPlayers(FieldRole.GOALKEEPER)
+                    + ", DEF: " + formation.countPlayers(FieldRole.DEFENDER)
+                    + ", MID: " + formation.countPlayers(FieldRole.MIDFIELDER)
+                    + ", FWD: " + formation.countPlayers(FieldRole.FORWARD)
+                    + " | " + formation.getSlots());
+        }
+    }
+
+    private static void testCoachAndReferee() {
+        printTitle("Coach and referee");
+        Coach guardiola = createGuardiola();
+        Referee collina = createCollina();
+
+        System.out.println(guardiola);
+        System.out.println("Preferred formation: " + guardiola.getPreferredFormation());
+        System.out.println(collina);
+        System.out.println("Strictness: " + collina.getStrictness());
+    }
+
     private static void testPolymorphism() {
         printTitle("Polymorphism");
-        List<Person> people = List.of(createMessi(), createBuffon());
+        List<Person> people = List.of(createMessi(), createBuffon(), createGuardiola(), createCollina());
 
         for (Person person : people) {
             System.out.println(person + " -> role: " + person.getRole());
@@ -177,6 +212,14 @@ public class Main {
         );
         return new Player(5, "Gianluigi", "Buffon", "Italy", 28,
                 1, DetailedPosition.GK, PreferredFoot.RIGHT, attributes);
+    }
+
+    private static Coach createGuardiola() {
+        return new Coach(1, "Pep", "Guardiola", "Spain", 41, Formation.FOUR_THREE_THREE);
+    }
+
+    private static Referee createCollina() {
+        return new Referee(1, "Pierluigi", "Collina", "Italy", 42, 85);
     }
 
     private static void printTitle(String title) {
