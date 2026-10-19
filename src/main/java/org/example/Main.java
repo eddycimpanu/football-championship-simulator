@@ -1,15 +1,36 @@
 package org.example;
 
+import org.example.model.DetailedPosition;
+import org.example.model.FieldRole;
+import org.example.model.Person;
+import org.example.model.Player;
+import org.example.model.PlayerAttributes;
+import org.example.model.PlayerStatus;
+import org.example.model.PreferredFoot;
+
 import java.io.IOException;
 import java.io.InputStream;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.SQLException;
+import java.util.List;
 import java.util.Properties;
 
 public class Main {
 
     public static void main(String[] args) {
+        testDatabaseConnection();
+        testPlayer();
+        testFieldRoles();
+        testCondition();
+        testStatus();
+        testValidation();
+        testPolymorphism();
+    }
+
+    // 1. Conexiunea la baza de date
+    private static void testDatabaseConnection() {
+        printTitle("Database connection");
         Properties dbProperties = loadDatabaseProperties();
 
         String url = dbProperties.getProperty("db.url");
@@ -21,6 +42,146 @@ public class Main {
         } catch (SQLException e) {
             System.out.println("Could not connect to database: " + e.getMessage());
         }
+    }
+
+    // 2. Crearea unui jucator si citirea datelor lui
+    private static void testPlayer() {
+        printTitle("Player");
+        Player messi = createMessi();
+
+        System.out.println(messi);
+        System.out.println("Full name: " + messi.getFullName());
+        System.out.println("Age: " + messi.getAge());
+        System.out.println("Position: " + messi.getPosition());
+        System.out.println("Field role: " + messi.getFieldRole());
+        System.out.println("Preferred foot: " + messi.getPreferredFoot());
+        System.out.println("Shooting: " + messi.getAttributes().shooting());
+        System.out.println("Dribbling: " + messi.getAttributes().dribbling());
+    }
+
+    // 3. Fiecare pozitie detaliata are rolul corect
+    private static void testFieldRoles() {
+        printTitle("Field roles");
+        for (DetailedPosition position : DetailedPosition.values()) {
+            System.out.println(position + " -> " + position.getFieldRole());
+        }
+
+        boolean correct = DetailedPosition.ST.getFieldRole() == FieldRole.FORWARD
+                && DetailedPosition.CB.getFieldRole() == FieldRole.DEFENDER
+                && DetailedPosition.CM.getFieldRole() == FieldRole.MIDFIELDER
+                && DetailedPosition.GK.getFieldRole() == FieldRole.GOALKEEPER;
+        System.out.println("Check: " + (correct ? "OK" : "FAILED"));
+    }
+
+    // 4. Conditia scade si creste, dar ramane intre 0 si 100
+    private static void testCondition() {
+        printTitle("Condition");
+        Player messi = createMessi();
+
+        System.out.println("Start: " + messi.getCondition());
+        messi.reduceCondition(30);
+        System.out.println("After match (-30): " + messi.getCondition());
+        messi.recoverCondition(50);
+        System.out.println("After recovery (+50): " + messi.getCondition() + " (max is 100)");
+        messi.reduceCondition(150);
+        System.out.println("After -150: " + messi.getCondition() + " (min is 0)");
+    }
+
+    // 5. Statusul jucatorului (disponibil / accidentat)
+    private static void testStatus() {
+        printTitle("Status");
+        Player messi = createMessi();
+
+        System.out.println("Status: " + messi.getStatus() + ", available: " + messi.isAvailable());
+        messi.setStatus(PlayerStatus.INJURED);
+        System.out.println("Status: " + messi.getStatus() + ", available: " + messi.isAvailable());
+    }
+
+    // 6. Datele invalide sunt respinse
+    private static void testValidation() {
+        printTitle("Validation (every line should be an expected error)");
+
+        try {
+            new PlayerAttributes(87, 120, 91, 96, 35, 68, 70, 10, 10, 85, 30);
+            System.out.println("FAILED: attribute 120 was accepted");
+        } catch (IllegalArgumentException e) {
+            System.out.println("Expected error: " + e.getMessage());
+        }
+
+        try {
+            new Player(2, "Test", "Player", "Romania", 25,
+                    150, DetailedPosition.ST, PreferredFoot.RIGHT, createMessi().getAttributes());
+            System.out.println("FAILED: shirt number 150 was accepted");
+        } catch (IllegalArgumentException e) {
+            System.out.println("Expected error: " + e.getMessage());
+        }
+
+        try {
+            new Player(3, "Test", "", "Romania", 25,
+                    9, DetailedPosition.ST, PreferredFoot.RIGHT, createMessi().getAttributes());
+            System.out.println("FAILED: empty last name was accepted");
+        } catch (IllegalArgumentException e) {
+            System.out.println("Expected error: " + e.getMessage());
+        }
+
+        try {
+            new Player(4, "Test", "Player", "Romania", 25,
+                    9, null, PreferredFoot.RIGHT, createMessi().getAttributes());
+            System.out.println("FAILED: null position was accepted");
+        } catch (IllegalArgumentException e) {
+            System.out.println("Expected error: " + e.getMessage());
+        }
+    }
+
+    // 7. Polimorfism: un Player tinut intr-o variabila de tip Person
+    private static void testPolymorphism() {
+        printTitle("Polymorphism");
+        List<Person> people = List.of(createMessi(), createBuffon());
+
+        for (Person person : people) {
+            System.out.println(person + " -> role: " + person.getRole());
+        }
+    }
+
+    private static Player createMessi() {
+        PlayerAttributes attributes = new PlayerAttributes(
+                87, // pace
+                92, // shooting
+                91, // passing
+                96, // dribbling
+                35, // defending
+                68, // physical
+                70, // heading
+                10, // reflexes
+                10, // handling
+                85, // stamina
+                30  // aggression
+        );
+        return new Player(1, "Lionel", "Messi", "Argentina", 25,
+                10, DetailedPosition.RW, PreferredFoot.LEFT, attributes);
+    }
+
+    private static Player createBuffon() {
+        PlayerAttributes attributes = new PlayerAttributes(
+                50, // pace
+                20, // shooting
+                60, // passing
+                30, // dribbling
+                25, // defending
+                80, // physical
+                40, // heading
+                92, // reflexes
+                90, // handling
+                75, // stamina
+                40  // aggression
+        );
+        return new Player(5, "Gianluigi", "Buffon", "Italy", 28,
+                1, DetailedPosition.GK, PreferredFoot.RIGHT, attributes);
+    }
+
+    private static void printTitle(String title) {
+        System.out.println();
+        System.out.println("=== " + title + " ===");
     }
 
     private static Properties loadDatabaseProperties() {
