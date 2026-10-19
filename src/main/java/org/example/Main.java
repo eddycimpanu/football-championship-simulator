@@ -36,89 +36,6 @@ public class Main {
         testTeam();
     }
 
-    private static void testTeam() {
-        printTitle("Team");
-        Team barcelona = new Team(1, "FC Barcelona", "bar", "Barcelona", "Camp Nou", createGuardiola());
-
-        Player messi = createMessi();
-        barcelona.addPlayer(messi);
-        barcelona.addPlayer(createBuffon());
-        barcelona.addPlayer(createTestPlayer(10, "Xavi", 6, DetailedPosition.CM));
-        barcelona.addPlayer(createTestPlayer(11, "Puyol", 5, DetailedPosition.CB));
-        barcelona.addPlayer(createTestPlayer(12, "Eto'o", 9, DetailedPosition.ST));
-
-        System.out.println(barcelona + ", coach: " + barcelona.getCoach().getFullName());
-        System.out.println("Squad size: " + barcelona.getSquadSize());
-        System.out.printf("Average OVR: %.1f%n", barcelona.getAverageOverall());
-        for (Player player : barcelona.getSquad()) {
-            System.out.println("  " + player);
-        }
-
-        System.out.println("Forwards: " + barcelona.getPlayersByFieldRole(FieldRole.FORWARD));
-        System.out.println("Player with number 6: " + barcelona.findByShirtNumber(6).orElse(null));
-
-        messi.setStatus(PlayerStatus.INJURED);
-        System.out.println("Available after Messi injury: " + barcelona.getAvailablePlayers().size()
-                + " of " + barcelona.getSquadSize());
-        System.out.println("Available forwards: " + barcelona.getAvailablePlayersByFieldRole(FieldRole.FORWARD));
-
-        System.out.println();
-        System.out.println("Validation (every line should be an expected error):");
-
-        try {
-            barcelona.addPlayer(createTestPlayer(13, "Duplicate", 10, DetailedPosition.ST));
-            System.out.println("FAILED: duplicate shirt number was accepted");
-        } catch (IllegalArgumentException e) {
-            System.out.println("Expected error: " + e.getMessage());
-        }
-
-        try {
-            Team fullTeam = new Team(2, "Full Team", "FUL", "Nowhere", "Test Arena", createGuardiola());
-            for (int number = 1; number <= Team.MAX_SQUAD_SIZE; number++) {
-                fullTeam.addPlayer(createTestPlayer(100 + number, "Player" + number, number, DetailedPosition.CM));
-            }
-            fullTeam.addPlayer(createTestPlayer(200, "Extra", 31, DetailedPosition.CM));
-            System.out.println("FAILED: 31st player was accepted");
-        } catch (IllegalStateException e) {
-            System.out.println("Expected error: " + e.getMessage());
-        }
-
-        try {
-            barcelona.getSquad().add(createTestPlayer(14, "Hacker", 99, DetailedPosition.ST));
-            System.out.println("FAILED: squad could be modified from outside");
-        } catch (UnsupportedOperationException e) {
-            System.out.println("Expected error: squad cannot be modified from outside the team");
-        }
-
-        try {
-            new Team(3, "Bad Team", "BADX", "Nowhere", "Test Arena", createGuardiola());
-            System.out.println("FAILED: 4-letter short name was accepted");
-        } catch (IllegalArgumentException e) {
-            System.out.println("Expected error: " + e.getMessage());
-        }
-    }
-
-    private static Player createTestPlayer(int id, String lastName, int shirtNumber, DetailedPosition position) {
-        PlayerAttributes attributes = new PlayerAttributes(
-                75, 75, 75, 75, 75, 75, 75, 15, 15, 75, 50);
-        return new Player(id, "", lastName, "Spain", 27, shirtNumber, position, PreferredFoot.RIGHT, attributes);
-    }
-
-    private static void testOverall() {
-        printTitle("Overall (OVR)");
-        Player messi = createMessi();
-        Player buffon = createBuffon();
-
-        System.out.println(messi.getFullName() + ": " + messi.getOverall() + " OVR (expected 88)");
-        System.out.println(buffon.getFullName() + ": " + buffon.getOverall() + " OVR (expected 89)");
-
-        System.out.println();
-        System.out.println("Messi on every field role:");
-        for (FieldRole fieldRole : FieldRole.values()) {
-            System.out.println("  " + fieldRole + ": " + buffon.getOverallAs(fieldRole));
-        }
-    }
-
     private static void testDatabaseConnection() {
         printTitle("Database connection");
         Properties dbProperties = loadDatabaseProperties();
@@ -264,6 +181,84 @@ public class Main {
         }
     }
 
+    private static void testOverall() {
+        printTitle("Overall (OVR)");
+        Player messi = createMessi();
+        Player buffon = createBuffon();
+
+        System.out.println(messi.getFullName() + ": " + messi.getOverall() + " OVR (expected 93)");
+        System.out.println(buffon.getFullName() + ": " + buffon.getOverall() + " OVR (expected 90)");
+
+        System.out.println();
+        System.out.println("Messi on other positions:");
+        for (DetailedPosition position : List.of(DetailedPosition.ST, DetailedPosition.CAM,
+                DetailedPosition.CM, DetailedPosition.CDM, DetailedPosition.CB, DetailedPosition.GK)) {
+            System.out.println("  " + position + ": " + messi.getOverallAs(position));
+        }
+    }
+
+    private static void testTeam() {
+        printTitle("Team");
+        Team barcelona = new Team(1, "FC Barcelona", "bar", "Barcelona", "Camp Nou", createGuardiola());
+
+        Player messi = createMessi();
+        barcelona.addPlayer(messi);
+        barcelona.addPlayer(createBuffon());
+        barcelona.addPlayer(createTestPlayer(10, "Xavi", 6, DetailedPosition.CM));
+        barcelona.addPlayer(createTestPlayer(11, "Puyol", 5, DetailedPosition.CB));
+        barcelona.addPlayer(createTestPlayer(12, "Eto'o", 9, DetailedPosition.ST));
+
+        System.out.println(barcelona + ", coach: " + barcelona.getCoach().getFullName());
+        System.out.println("Squad size: " + barcelona.getSquadSize());
+        System.out.printf("Average OVR: %.1f%n", barcelona.getAverageOverall());
+        for (Player player : barcelona.getSquad()) {
+            System.out.println("  " + player);
+        }
+
+        System.out.println("Forwards: " + barcelona.getPlayersByFieldRole(FieldRole.FORWARD));
+        System.out.println("Player with number 6: " + barcelona.findByShirtNumber(6).orElse(null));
+
+        messi.setStatus(PlayerStatus.INJURED);
+        System.out.println("Available after Messi injury: " + barcelona.getAvailablePlayers().size()
+                + " of " + barcelona.getSquadSize());
+        System.out.println("Available forwards: " + barcelona.getAvailablePlayersByFieldRole(FieldRole.FORWARD));
+
+        System.out.println();
+        System.out.println("Validation (every line should be an expected error):");
+
+        try {
+            barcelona.addPlayer(createTestPlayer(13, "Duplicate", 10, DetailedPosition.ST));
+            System.out.println("FAILED: duplicate shirt number was accepted");
+        } catch (IllegalArgumentException e) {
+            System.out.println("Expected error: " + e.getMessage());
+        }
+
+        try {
+            Team fullTeam = new Team(2, "Full Team", "FUL", "Nowhere", "Test Arena", createGuardiola());
+            for (int number = 1; number <= Team.MAX_SQUAD_SIZE; number++) {
+                fullTeam.addPlayer(createTestPlayer(100 + number, "Player" + number, number, DetailedPosition.CM));
+            }
+            fullTeam.addPlayer(createTestPlayer(200, "Extra", 31, DetailedPosition.CM));
+            System.out.println("FAILED: 31st player was accepted");
+        } catch (IllegalStateException e) {
+            System.out.println("Expected error: " + e.getMessage());
+        }
+
+        try {
+            barcelona.getSquad().add(createTestPlayer(14, "Hacker", 99, DetailedPosition.ST));
+            System.out.println("FAILED: squad could be modified from outside");
+        } catch (UnsupportedOperationException e) {
+            System.out.println("Expected error: squad cannot be modified from outside the team");
+        }
+
+        try {
+            new Team(3, "Bad Team", "BADX", "Nowhere", "Test Arena", createGuardiola());
+            System.out.println("FAILED: 4-letter short name was accepted");
+        } catch (IllegalArgumentException e) {
+            System.out.println("Expected error: " + e.getMessage());
+        }
+    }
+
     private static Player createMessi() {
         PlayerAttributes attributes = new PlayerAttributes(
                 87, // pace
@@ -298,6 +293,12 @@ public class Main {
         );
         return new Player(5, "Gianluigi", "Buffon", "Italy", 28,
                 1, DetailedPosition.GK, PreferredFoot.RIGHT, attributes);
+    }
+
+    private static Player createTestPlayer(int id, String lastName, int shirtNumber, DetailedPosition position) {
+        PlayerAttributes attributes = new PlayerAttributes(
+                75, 75, 75, 75, 75, 75, 75, 15, 15, 75, 50);
+        return new Player(id, "", lastName, "Spain", 27, shirtNumber, position, PreferredFoot.RIGHT, attributes);
     }
 
     private static Coach createGuardiola() {

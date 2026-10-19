@@ -1,0 +1,6 @@
+package org.example.model;
+
+public enum Attribute {
+    PACE, SHOOTING, PASSING, DRIBBLING, DEFENDING, PHYSICAL,
+    HEADING, REFLEXES, HANDLING, STAMINA, AGGRESSION
+}

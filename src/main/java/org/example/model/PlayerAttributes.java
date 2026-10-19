@@ -36,4 +36,21 @@ public record PlayerAttributes(
                     name + " must be between " + MIN_VALUE + " and " + MAX_VALUE + ", got " + value);
         }
     }
+
+    public int get(Attribute attribute) {
+        return switch (attribute) {
+            case PACE -> pace;
+            case SHOOTING -> shooting;
+            case PASSING -> passing;
+            case DRIBBLING -> dribbling;
+            case DEFENDING -> defending;
+            case PHYSICAL -> physical;
+            case HEADING -> heading;
+            case REFLEXES -> reflexes;
+            case HANDLING -> handling;
+            case STAMINA -> stamina;
+            case AGGRESSION -> aggression;
+        };
+    }
+
 }

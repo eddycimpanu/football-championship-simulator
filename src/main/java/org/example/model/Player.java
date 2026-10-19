@@ -31,11 +31,11 @@ public class Player extends Person {
     }
 
     public int getOverall() {
-        return getOverallAs(getFieldRole());
+        return getOverallAs(position);
     }
 
-    public int getOverallAs(FieldRole fieldRole) {
-        return OverallCalculators.forRole(fieldRole).calculate(attributes);
+    public int getOverallAs(DetailedPosition otherPosition) {
+        return OverallCalculators.forPosition(otherPosition).calculate(attributes);
     }
 
     @Override
