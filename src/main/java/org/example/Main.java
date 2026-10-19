@@ -31,6 +31,22 @@ public class Main {
         testFormations();
         testCoachAndReferee();
         testPolymorphism();
+        testOverall();
+    }
+
+    private static void testOverall() {
+        printTitle("Overall (OVR)");
+        Player messi = createMessi();
+        Player buffon = createBuffon();
+
+        System.out.println(messi.getFullName() + ": " + messi.getOverall() + " OVR (expected 88)");
+        System.out.println(buffon.getFullName() + ": " + buffon.getOverall() + " OVR (expected 89)");
+
+        System.out.println();
+        System.out.println("Messi on every field role:");
+        for (FieldRole fieldRole : FieldRole.values()) {
+            System.out.println("  " + fieldRole + ": " + buffon.getOverallAs(fieldRole));
+        }
     }
 
     private static void testDatabaseConnection() {

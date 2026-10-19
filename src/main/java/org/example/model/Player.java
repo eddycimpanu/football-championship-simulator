@@ -30,6 +30,14 @@ public class Player extends Person {
         this.status = PlayerStatus.AVAILABLE;
     }
 
+    public int getOverall() {
+        return getOverallAs(getFieldRole());
+    }
+
+    public int getOverallAs(FieldRole fieldRole) {
+        return OverallCalculators.forRole(fieldRole).calculate(attributes);
+    }
+
     @Override
     public String getRole() {
         return "Player";
@@ -67,6 +75,6 @@ public class Player extends Person {
 
     @Override
     public String toString() {
-        return "#" + shirtNumber + " " + getFullName() + " (" + position + ", " + getNationality() + ")";
+        return "#" + shirtNumber + " " + getFullName() + " (" + position + ", " + getOverall() + " OVR)";
     }
 }
