@@ -1,63 +1,111 @@
 package org.example;
 
+import org.example.engine.ShotOutcome;
+import org.example.engine.random.RandomProvider;
+import org.example.engine.random.RouletteWheel;
+import org.example.engine.random.SkillFactor;
 import org.example.model.Player;
-import org.example.model.Referee;
 import org.example.model.Team;
 import org.example.persistence.ConnectionProvider;
 import org.example.persistence.DatabaseConfig;
 import org.example.persistence.LeagueLoader;
 
-import java.util.Comparator;
+import java.util.EnumMap;
 import java.util.List;
+import java.util.Map;
 
 public class Main {
 
+    private static final double GOAL_BASE = 15;
+    private static final double SAVE_BASE = 35;
+    private static final double MISS_BASE = 50;
+
     public static void main(String[] args) {
         ConnectionProvider connectionProvider = new ConnectionProvider(DatabaseConfig.load());
-        LeagueLoader leagueLoader = new LeagueLoader(connectionProvider);
+        List<Team> teams = new LeagueLoader(connectionProvider).loadTeams();
 
-        List<Team> teams = leagueLoader.loadTeams();
-        List<Referee> referees = leagueLoader.loadReferees();
+        RandomProvider random = new RandomProvider(42);
 
-        printTeams(teams);
-        printSquad(teams, "Barcelona");
-        printReferees(referees);
+        Player messi = findPlayer(teams, "Messi");
+        Player nicolita = findPlayer(teams, "Nicoliță");
+        Player buffon = findPlayer(teams, "Buffon");
+
+        testShot(messi, buffon, random);
+        testShot(nicolita, buffon, random);
+        testSameSeed();
+        testValidation();
     }
 
-    private static void printTeams(List<Team> teams) {
-        System.out.println("=== Teams (by average OVR) ===");
-        teams.stream()
-                .sorted(Comparator.comparingDouble(Team::getAverageOverall).reversed())
-                .forEach(team -> System.out.printf("%-20s %-4s %-22s %2d players   avg OVR %.1f%n",
-                        team.getName(),
-                        team.getShortName(),
-                        team.getCoach().getFullName(),
-                        team.getSquadSize(),
-                        team.getAverageOverall()));
+    private static RouletteWheel<ShotOutcome> shotWheel(Player shooter, Player keeper) {
+        double skill = SkillFactor.of(shooter.getAttributes().shooting(), keeper.getAttributes().reflexes());
+        return new RouletteWheel<ShotOutcome>()
+                .addFavourable(ShotOutcome.GOAL, GOAL_BASE, skill)
+                .addOption(ShotOutcome.SAVE, SAVE_BASE)
+                .addUnfavourable(ShotOutcome.MISS, MISS_BASE, skill);
     }
 
-    private static void printSquad(List<Team> teams, String teamName) {
-        Team team = teams.stream()
-                .filter(t -> t.getName().equals(teamName))
-                .findFirst()
-                .orElseThrow(() -> new IllegalArgumentException("Team not found: " + teamName));
-
+    private static void testShot(Player shooter, Player keeper, RandomProvider random) {
         System.out.println();
-        System.out.println("=== " + team.getName() + " squad (by OVR) ===");
-        team.getSquad().stream()
-                .sorted(Comparator.comparingInt(Player::getOverall).reversed())
-                .forEach(player -> System.out.printf("#%-3d %-25s %-4s %3d OVR%n",
-                        player.getShirtNumber(),
-                        player.getFullName(),
-                        player.getPosition(),
-                        player.getOverall()));
-    }
+        System.out.println("=== " + shooter.getFullName() + " (SHOOTING " + shooter.getAttributes().shooting()
+                + ") shoots at " + keeper.getFullName() + " (REFLEXES " + keeper.getAttributes().reflexes() + ") ===");
 
-    private static void printReferees(List<Referee> referees) {
-        System.out.println();
-        System.out.println("=== Referees ===");
-        for (Referee referee : referees) {
-            System.out.println(referee);
+        RouletteWheel<ShotOutcome> wheel = shotWheel(shooter, keeper);
+        System.out.print(wheel.describe());
+
+        double roll = random.nextDouble();
+        System.out.printf("One spin: roll %.3f -> %s%n", roll, wheel.pick(roll));
+
+        int shots = 100_000;
+        Map<ShotOutcome, Integer> counts = new EnumMap<>(ShotOutcome.class);
+        for (int i = 0; i < shots; i++) {
+            counts.merge(wheel.spin(random), 1, Integer::sum);
         }
+        System.out.println("After " + shots + " shots:");
+        for (ShotOutcome outcome : ShotOutcome.values()) {
+            double actual = 100.0 * counts.getOrDefault(outcome, 0) / shots;
+            double expected = 100.0 * wheel.probabilityOf(outcome);
+            System.out.printf("  %-6s %5.1f%%  (expected %5.1f%%)%n", outcome, actual, expected);
+        }
+    }
+
+    private static void testSameSeed() {
+        System.out.println();
+        System.out.println("=== Same seed, same season ===");
+        RandomProvider first = new RandomProvider(7);
+        RandomProvider second = new RandomProvider(7);
+        boolean same = true;
+        for (int i = 0; i < 1000; i++) {
+            if (first.nextDouble() != second.nextDouble()) {
+                same = false;
+            }
+        }
+        System.out.println("1000 numbers identical: " + same);
+    }
+
+    private static void testValidation() {
+        System.out.println();
+        System.out.println("=== Validation (every line should be an expected error) ===");
+
+        try {
+            new RouletteWheel<String>().addOption("GOAL", -5);
+            System.out.println("FAILED: negative weight was accepted");
+        } catch (IllegalArgumentException e) {
+            System.out.println("Expected error: " + e.getMessage());
+        }
+
+        try {
+            new RouletteWheel<String>().addOption("GOAL", 0).pick(0.5);
+            System.out.println("FAILED: empty wheel was spun");
+        } catch (IllegalStateException e) {
+            System.out.println("Expected error: " + e.getMessage());
+        }
+    }
+
+    private static Player findPlayer(List<Team> teams, String lastName) {
+        return teams.stream()
+                .flatMap(team -> team.getSquad().stream())
+                .filter(player -> player.getLastName().equals(lastName))
+                .findFirst()
+                .orElseThrow(() -> new IllegalArgumentException("Player not found: " + lastName));
     }
 }
