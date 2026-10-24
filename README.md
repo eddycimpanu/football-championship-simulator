@@ -4,4 +4,4 @@
 ## Match engine
 
 The match engine is a state machine driven by a roulette wheel.
-See [Match Simulation - Decision Tree](docs/match-simulation-decision-tree.md).
+See [Match Simulation - Decision Tree](docs/simulation-tree-decision.md).
