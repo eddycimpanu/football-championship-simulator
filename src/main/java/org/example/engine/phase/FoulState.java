@@ -2,6 +2,7 @@ package org.example.engine.phase;
 
 import org.example.config.EngineConfig;
 import org.example.engine.CardDecider;
+import org.example.engine.InjuryDecider;
 import org.example.engine.MatchContext;
 import org.example.engine.event.FoulEvent;
 import org.example.model.Player;
@@ -31,6 +32,9 @@ public class FoulState extends PhaseState {
         // Card check: no card, yellow or red. Then the coach of the penalised team may protest.
         CardDecider.afterFoul(context, fouler, penalty);
         CardDecider.coachProtest(context, context.defendingTeam());
+
+        // A hard foul can injure the player who was fouled
+        InjuryDecider.afterFoul(context, fouled);
 
         // The fouled team keeps the ball
         if (penalty) {

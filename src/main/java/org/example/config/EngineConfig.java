@@ -33,7 +33,7 @@ public final class EngineConfig {
     public static final double AVERAGE_REFEREE_STRICTNESS = 68;   // a referee with this strictness is "normal"
     public static final double CARD_NONE = 80;                   // after a foul: no card / yellow / red
     public static final double CARD_YELLOW = 20;
-    public static final double CARD_RED = 0.28;
+    public static final double CARD_RED = 0.38;
     public static final double SERIOUS_FOUL_YELLOW_FACTOR = 2;   // a foul that gives a penalty
     public static final double SERIOUS_FOUL_RED_FACTOR = 5;
     public static final double BOOKED_PLAYER_YELLOW_FACTOR = 0.15; // a booked player is careful and gets the benefit of the doubt
@@ -42,6 +42,21 @@ public final class EngineConfig {
     public static final double COACH_RED = 0.1;
     public static final double RED_CARD_FACTOR = 0.90;           // a team with 10 men is 10% weaker
     public static final int MIN_PLAYERS_ON_PITCH = 7;            // below this the match is abandoned
+
+    // ----- Injuries -----
+    public static final double INJURY_CHANCE_PER_PHASE = 0.0007;  // for each team, after every phase
+    public static final double INJURY_CHANCE_AFTER_FOUL = 0.006;  // for the player who was fouled
+    public static final int MATCHES_OUT_INJURED = 1;
+
+    // ----- Substitutions -----
+    public static final int MAX_SUBSTITUTIONS = 5;
+    public static final int[] SUBSTITUTION_MINUTES = {60, 70, 80};  // plus half-time and after an injury
+    public static final int MAX_CHANGES_PER_WINDOW = 2;
+    public static final double TIRED_ENERGY = 80;                 // below this a player may be taken off
+    public static final int FATIGUE_SUBSTITUTION_MARGIN = 8;      // the replacement can be up to 8 OVR worse
+    public static final int CARD_RISK_AGGRESSION = 70;            // a booked player this aggressive may be taken off
+    public static final int TACTICAL_FROM_MINUTE = 70;
+    public static final int KEEP_ONE_SUBSTITUTION_UNTIL = 80;     // a reserve change for injuries
 
     // ----- Durations in seconds (min, max) -----
     public static final int KICKOFF_MIN = 5, KICKOFF_MAX = 10;

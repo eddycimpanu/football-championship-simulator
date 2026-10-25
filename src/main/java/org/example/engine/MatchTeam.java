@@ -35,6 +35,9 @@ public class MatchTeam {
     private boolean coachHasYellow;
     private boolean coachSentOff;
 
+    private final Set<Player> injured = new HashSet<>();
+    private int substitutionsUsed;
+
     private MatchTeam(Team team, boolean home, Lineup lineup) {
         this.team = team;
         this.home = home;
@@ -149,6 +152,48 @@ public class MatchTeam {
         }
     }
 
+    // ----- Injuries and substitutions -----
+
+    // The injured player leaves the pitch straight away.
+    public void injure(Player player) {
+        if (onPitch.remove(player)) {
+            injured.add(player);
+        }
+    }
+
+    // The player coming on takes the place of the player going off.
+    // If the player going off has already left (injured), the new player simply comes on.
+    public void substitute(Player playerOut, Player playerIn) {
+        if (!canSubstitute()) {
+            throw new IllegalStateException(getName() + " has no substitutions left");
+        }
+        if (!bench.remove(playerIn)) {
+            throw new IllegalArgumentException(playerIn.getFullName() + " is not on the bench");
+        }
+        int place = onPitch.indexOf(playerOut);
+        if (place >= 0) {
+            onPitch.set(place, playerIn);
+        } else {
+            onPitch.add(playerIn);
+        }
+        substitutionsUsed++;
+    }
+
+    public boolean canSubstitute() {
+        return substitutionsUsed < EngineConfig.MAX_SUBSTITUTIONS && !bench.isEmpty();
+    }
+
+    public int substitutionsLeft() {
+        return EngineConfig.MAX_SUBSTITUTIONS - substitutionsUsed;
+    }
+
+    // After the final whistle: the injured players miss the next match.
+    public void applyInjuriesAfterMatch() {
+        for (Player player : injured) {
+            player.injure(EngineConfig.MATCHES_OUT_INJURED);
+        }
+    }
+
     // ----- Ratings, always from the players on the pitch right now -----
 
     public double getAttackRating() {
@@ -209,6 +254,14 @@ public class MatchTeam {
 
     public boolean isCoachSentOff() {
         return coachSentOff;
+    }
+
+    public List<Player> getInjured() {
+        return List.copyOf(injured);
+    }
+
+    public int getSubstitutionsUsed() {
+        return substitutionsUsed;
     }
 
     // If the goalkeeper was sent off, the outfield player with the best hands goes in goal.

@@ -4,6 +4,7 @@ import org.example.config.EngineConfig;
 import org.example.engine.event.CardEvent;
 import org.example.engine.event.CoachCardEvent;
 import org.example.engine.random.RouletteWheel;
+import org.example.model.FieldRole;
 import org.example.model.Player;
 
 // The referee's decisions after a foul: card for the player, and sometimes for a coach who protests.
@@ -78,5 +79,8 @@ public final class CardDecider {
     private static void show(MatchContext context, MatchTeam team, Player player, CardEvent.CardType cardType) {
         context.clock().recordCard();
         context.addEvent(new CardEvent(context.minute(), team.getTeam(), player, cardType));
+        if (cardType.isSendingOff() && player.getFieldRole() == FieldRole.GOALKEEPER) {
+            SubstitutionManager.afterGoalkeeperSentOff(context, team);
+        }
     }
 }

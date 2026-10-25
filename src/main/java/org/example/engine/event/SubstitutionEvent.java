@@ -6,7 +6,7 @@ import org.example.model.Team;
 
 public class SubstitutionEvent extends KeyMatchEvent {
 
-    public enum Reason { INJURY, FATIGUE, CARD_RISK, TACTICAL }
+    public enum Reason { INJURY, FATIGUE, CARD_RISK, TACTICAL, GOALKEEPER_SENT_OFF }
 
     private final Player playerOut;
     private final Player playerIn;

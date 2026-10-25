@@ -7,6 +7,8 @@ import org.example.engine.MatchResult;
 import org.example.engine.event.CardEvent;
 import org.example.engine.event.CoachCardEvent;
 import org.example.engine.event.EventDisplayMode;
+import org.example.engine.event.InjuryEvent;
+import org.example.engine.event.SubstitutionEvent;
 import org.example.engine.random.RandomProvider;
 import org.example.model.Player;
 import org.example.model.PlayerStatus;
@@ -30,7 +32,7 @@ public class Main {
         List<Referee> referees = loader.loadReferees();
         RandomProvider random = new RandomProvider(SEED);
 
-        // 1. One match with the key events: goals and cards
+        // 1. One match with the key events: goals, cards, injuries and substitutions
         MatchResult classic = new Match(findTeam(teams, "Real Madrid"), findTeam(teams, "Atlético Madrid"),
                 random.pickOne(referees), random).simulate();
         MatchReportPrinter printer = new MatchReportPrinter();
@@ -40,7 +42,7 @@ public class Main {
         // 2. Several rounds with all 20 teams, to see cards and bans over time
         System.out.println();
         System.out.println("=== " + TEST_ROUNDS + " rounds, 10 matches each ===");
-        int matches = 0, yellows = 0, reds = 0, coachCards = 0;
+        int matches = 0, yellows = 0, reds = 0, coachCards = 0, injuries = 0, substitutions = 0;
 
         for (int round = 1; round <= TEST_ROUNDS; round++) {
             printUnavailable(round, teams);
@@ -55,10 +57,15 @@ public class Main {
                 yellows += result.getHomeStats().yellowCards() + result.getAwayStats().yellowCards();
                 reds += result.getHomeStats().redCards() + result.getAwayStats().redCards();
                 coachCards += result.getEventsOfType(CoachCardEvent.class).size();
+                substitutions += result.getEventsOfType(SubstitutionEvent.class).size();
                 for (CardEvent card : result.getEventsOfType(CardEvent.class)) {
                     if (card.isSendingOff()) {
                         System.out.println("  " + card.getMinute() + " " + card.describe() + "   in " + result);
                     }
+                }
+                for (InjuryEvent injury : result.getEventsOfType(InjuryEvent.class)) {
+                    injuries++;
+                    System.out.println("  " + injury.getMinute() + " " + injury.describe() + "   in " + result);
                 }
             }
             recoverAll(teams);
@@ -68,14 +75,16 @@ public class Main {
         System.out.printf("Yellow cards per match: %.2f   (real football: 3.5 - 4.5)%n", (double) yellows / matches);
         System.out.printf("Red cards per match:    %.2f   (real football: 0.1 - 0.2)%n", (double) reds / matches);
         System.out.printf("Coach cards per match:  %.2f%n", (double) coachCards / matches);
+        System.out.printf("Injuries per match:     %.2f   (about one every 3 - 4 matches)%n", (double) injuries / matches);
+        System.out.printf("Substitutions per team: %.2f   (real football: 4 - 4.5 of 5)%n", substitutions / (2.0 * matches));
     }
 
     private static void printUnavailable(int round, List<Team> teams) {
         System.out.println("Round " + round + ":");
         for (Team team : teams) {
             for (Player player : team.getSquad()) {
-                if (player.getStatus() == PlayerStatus.SUSPENDED) {
-                    System.out.println("  SUSPENDED: " + player.getFullName() + " (" + team.getName() + ")");
+                if (player.getStatus() != PlayerStatus.AVAILABLE) {
+                    System.out.println("  " + player.getStatus() + ": " + player.getFullName() + " (" + team.getName() + ")");
                 }
             }
         }

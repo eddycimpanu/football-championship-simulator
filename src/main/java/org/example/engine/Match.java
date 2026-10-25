@@ -58,6 +58,8 @@ public class Match {
         context.clock().startSecondHalf();
         context.giveBallTo(context.opponentOf(firstKickoff));
         context.addEvent(new PeriodEvent(context.minute(), PeriodEvent.Kind.SECOND_HALF, context.score()));
+        SubstitutionManager.considerChanges(context, home);
+        SubstitutionManager.considerChanges(context, away);
         playHalf(context);
         context.addEvent(new PeriodEvent(context.minute(), PeriodEvent.Kind.FULL_TIME, context.score()));
 
@@ -65,19 +67,35 @@ public class Match {
         home.applyConditionLoss();
         away.applyConditionLoss();
 
-        // Bans served, yellow cards counted, red cards turned into suspensions
+        // Bans served, yellow cards counted, red cards turned into suspensions, injured players out
         home.applyDisciplineAfterMatch();
         away.applyDisciplineAfterMatch();
+        home.applyInjuriesAfterMatch();
+        away.applyInjuriesAfterMatch();
 
         result = new MatchResult(context, referee);
         return result;
     }
 
     // Phase after phase until the half is over. A phase that has started is never cut in the middle.
+    // Between two phases: a possible injury, and in the second half the coaches' substitution windows.
     private void playHalf(MatchContext context) {
         PhaseState next = new KickoffState();
+        int window = 0;
         while (!context.clock().isPeriodOver() && !context.isAbandoned()) {
             PhaseSummary phase = phaseRunner.run(next, context);
+
+            InjuryDecider.afterPhase(context);
+
+            if (context.clock().getPeriod() == MatchPeriod.SECOND_HALF) {
+                while (window < EngineConfig.SUBSTITUTION_MINUTES.length
+                        && context.minute().minute() >= EngineConfig.SUBSTITUTION_MINUTES[window]) {
+                    SubstitutionManager.considerChanges(context, context.getHome());
+                    SubstitutionManager.considerChanges(context, context.getAway());
+                    window++;
+                }
+            }
+
             if (context.clock().isRegulationTimeOver() && !context.clock().isStoppageTimeAnnounced()) {
                 context.clock().announceStoppageTime(random);
             }
