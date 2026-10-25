@@ -134,6 +134,8 @@ public final class SubstitutionManager {
     private static void substitute(MatchContext context, MatchTeam team, Player out, Player in,
                                    SubstitutionEvent.Reason reason) {
         team.substitute(out, in);
+        context.playerLeaves(out);
+        context.playerEnters(in);
         context.clock().recordSubstitution();
         context.addEvent(new SubstitutionEvent(context.minute(), team.getTeam(), out, in, reason));
     }

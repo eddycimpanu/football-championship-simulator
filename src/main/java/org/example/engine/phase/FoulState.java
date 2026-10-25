@@ -4,7 +4,6 @@ import org.example.config.EngineConfig;
 import org.example.engine.CardDecider;
 import org.example.engine.InjuryDecider;
 import org.example.engine.MatchContext;
-import org.example.engine.event.FoulEvent;
 import org.example.model.Player;
 
 public class FoulState extends PhaseState {
@@ -21,7 +20,7 @@ public class FoulState extends PhaseState {
 
     @Override
     public StateResult execute(MatchContext context) {
-        context.addEvent(new FoulEvent(context.minute(), context.defendingTeam().getTeam(), fouler, fouled));
+        context.recordFoul(context.defendingTeam(), fouler, fouled);
         int seconds = duration(context, EngineConfig.FOUL_MIN, EngineConfig.FOUL_MAX);
 
         // Inside or outside the box? Fouls during a cross happen in the box much more often.

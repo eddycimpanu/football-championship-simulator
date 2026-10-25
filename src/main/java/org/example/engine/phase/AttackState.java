@@ -6,7 +6,6 @@ import org.example.engine.MatchTeam;
 import org.example.engine.PlayerAction;
 import org.example.engine.PlayerPicker;
 import org.example.engine.event.GoalEvent;
-import org.example.engine.event.OffsideEvent;
 import org.example.engine.random.RouletteWheel;
 import org.example.engine.random.SkillFactor;
 import org.example.model.Attribute;
@@ -49,9 +48,13 @@ public class AttackState extends PhaseState {
                 Player assist = context.random().chance(EngineConfig.ASSIST_CHANCE)
                         ? PlayerPicker.pick(attackers, PlayerAction.ASSIST, shooter, context.random())
                         : null;
+                if (assist != null) {
+                    context.recordKeyPass(assist);
+                }
                 yield new StateResult(new ShootState(ShotType.OPEN_PLAY, shooter, assist), seconds);
             }
             case DEFENDER_WINS_BALL -> {
+                context.recordTackle(PlayerPicker.pick(defenders, PlayerAction.DEFEND, context.random()));
                 context.switchPossession();
                 yield new StateResult(new DispossessionState(), seconds);
             }
@@ -62,7 +65,7 @@ public class AttackState extends PhaseState {
             }
             case OFFSIDE -> {
                 Player runner = PlayerPicker.pick(attackers, PlayerAction.RUN_IN_BEHIND, context.random());
-                context.addEvent(new OffsideEvent(context.minute(), attackers.getTeam(), runner));
+                context.recordOffside(attackers, runner);
                 context.switchPossession();
                 yield new StateResult(new FreeKickState(false), seconds);
             }

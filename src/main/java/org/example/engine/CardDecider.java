@@ -79,6 +79,16 @@ public final class CardDecider {
     private static void show(MatchContext context, MatchTeam team, Player player, CardEvent.CardType cardType) {
         context.clock().recordCard();
         context.addEvent(new CardEvent(context.minute(), team.getTeam(), player, cardType));
+
+        // A second yellow counts as a yellow and a red in the statistics
+        PlayerMatchStats stats = context.statsOf(player);
+        if (cardType != CardEvent.CardType.RED) {
+            stats.addYellowCard();
+        }
+        if (cardType.isSendingOff()) {
+            stats.addRedCard();
+            context.playerLeaves(player);
+        }
         if (cardType.isSendingOff() && player.getFieldRole() == FieldRole.GOALKEEPER) {
             SubstitutionManager.afterGoalkeeperSentOff(context, team);
         }

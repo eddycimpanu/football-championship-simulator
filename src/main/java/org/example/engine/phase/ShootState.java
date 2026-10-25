@@ -6,8 +6,6 @@ import org.example.engine.MatchTeam;
 import org.example.engine.PlayerAction;
 import org.example.engine.PlayerPicker;
 import org.example.engine.ShotOutcome;
-import org.example.engine.event.SaveEvent;
-import org.example.engine.event.ShotEvent;
 import org.example.engine.random.RouletteWheel;
 import org.example.engine.random.SkillFactor;
 import org.example.model.Player;
@@ -50,7 +48,7 @@ public class ShootState extends PhaseState {
                 .addUnfavourable(ShotOutcome.MISS, shotType.missWeight(), vsDefender)
                 .spin(context.random());
 
-        context.addEvent(new ShotEvent(context.minute(), attackers.getTeam(), shooter, outcome != ShotOutcome.MISS));
+        context.recordShot(attackers, shooter, outcome != ShotOutcome.MISS);
 
         return switch (outcome) {
             case GOAL -> {
@@ -63,7 +61,7 @@ public class ShootState extends PhaseState {
                 yield new StateResult(new GoalKickState(), seconds);
             }
             case SAVE -> {
-                context.addEvent(new SaveEvent(context.minute(), defenders.getTeam(), keeper, shooter));
+                context.recordSave(defenders, keeper, shooter);
                 yield afterSave(context, keeper, seconds);
             }
         };

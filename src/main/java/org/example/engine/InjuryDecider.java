@@ -28,6 +28,7 @@ public final class InjuryDecider {
 
     private static void injure(MatchContext context, MatchTeam team, Player player) {
         team.injure(player);
+        context.playerLeaves(player);
         context.clock().recordInjury();
         context.addEvent(new InjuryEvent(context.minute(), team.getTeam(), player));
         SubstitutionManager.afterInjury(context, team, player);

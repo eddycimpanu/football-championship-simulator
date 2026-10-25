@@ -1,11 +1,20 @@
 package org.example.engine;
 
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
 import org.example.config.EngineConfig;
 import org.example.engine.event.GoalEvent;
+import org.example.engine.event.FoulEvent;
+import org.example.engine.event.OffsideEvent;
+import org.example.engine.event.SaveEvent;
+import org.example.engine.event.ShotEvent;
 import org.example.engine.event.MatchEvent;
 import org.example.engine.event.MatchEventLog;
 import org.example.engine.random.RandomProvider;
 import org.example.model.Player;
+import org.example.model.Team;
 import org.example.model.PlayerAttributes;
 import org.example.model.Referee;
 
@@ -22,6 +31,8 @@ public class MatchContext {
     private Score score = Score.ZERO;
     private int homePossessionSeconds;
     private int awayPossessionSeconds;
+
+    private final Map<Player, PlayerMatchStats> playerStats = new LinkedHashMap<>();
 
     public MatchContext(MatchTeam home, MatchTeam away, Referee referee, RandomProvider random) {
         this.home = home;
@@ -124,6 +135,99 @@ public class MatchContext {
         score = scoringTeam == home ? score.homeScores() : score.awayScores();
         clock.recordGoal();
         events.add(new GoalEvent(minute(), scoringTeam.getTeam(), scorer, assist, goalType, score));
+
+        if (goalType == GoalEvent.GoalType.OWN_GOAL) {
+            statsOf(scorer).addOwnGoal();
+        } else {
+            statsOf(scorer).addGoal();
+        }
+        if (assist != null) {
+            statsOf(assist).addAssist();
+        }
+        statsOf(opponentOf(scoringTeam).getGoalkeeper()).addGoalConceded();
+    }
+
+    // ----- Records: the event for the match report and the number for the statistics, in one call -----
+
+    public void recordShot(MatchTeam team, Player shooter, boolean onTarget) {
+        events.add(new ShotEvent(minute(), team.getTeam(), shooter, onTarget));
+        statsOf(shooter).addShot(onTarget);
+    }
+
+    public void recordSave(MatchTeam goalkeeperTeam, Player goalkeeper, Player shooter) {
+        events.add(new SaveEvent(minute(), goalkeeperTeam.getTeam(), goalkeeper, shooter));
+        statsOf(goalkeeper).addSave();
+    }
+
+    public void recordFoul(MatchTeam foulerTeam, Player fouler, Player fouled) {
+        events.add(new FoulEvent(minute(), foulerTeam.getTeam(), fouler, fouled));
+        statsOf(fouler).addFoulCommitted();
+        statsOf(fouled).addFoulSuffered();
+    }
+
+    public void recordOffside(MatchTeam team, Player player) {
+        events.add(new OffsideEvent(minute(), team.getTeam(), player));
+        statsOf(player).addOffside();
+    }
+
+    public void recordTackle(Player player) {
+        statsOf(player).addTackle();
+    }
+
+    public void recordInterception(Player player) {
+        statsOf(player).addInterception();
+    }
+
+    public void recordKeyPass(Player player) {
+        statsOf(player).addKeyPass();
+    }
+
+    // ----- Player statistics -----
+
+    public PlayerMatchStats statsOf(Player player) {
+        return playerStats.computeIfAbsent(player,
+                p -> new PlayerMatchStats(p, teamOf(p).getTeam(), false, statsMinute()));
+    }
+
+    void registerStartingElevens() {
+        for (MatchTeam team : List.of(home, away)) {
+            for (Player player : team.getStartingEleven()) {
+                playerStats.put(player, new PlayerMatchStats(player, team.getTeam(), true, 0));
+            }
+        }
+    }
+
+    void playerEnters(Player player) {
+        statsOf(player);
+    }
+
+    void playerLeaves(Player player) {
+        statsOf(player).leave(statsMinute());
+    }
+
+    void finishPlayerStats() {
+        playerStats.values().forEach(stats -> {
+            boolean homePlayer = stats.getTeam() == home.getTeam();
+            int goalsFor = homePlayer ? score.home() : score.away();
+            int goalsAgainst = homePlayer ? score.away() : score.home();
+            stats.finish(goalsFor, goalsAgainst);
+        });
+    }
+
+    public List<PlayerMatchStats> playerStatsOf(Team team) {
+        List<PlayerMatchStats> result = new ArrayList<>();
+        for (PlayerMatchStats stats : playerStats.values()) {
+            if (stats.getTeam() == team) {
+                result.add(stats);
+            }
+        }
+        return result;
+    }
+
+    // Minute used for minutes played: changes made at half-time count as 45'.
+    private int statsMinute() {
+        int minute = clock.getMinute().minute();
+        return minute == 46 ? 45 : Math.min(90, minute);
     }
 
     public MatchTeam getHome() { return home; }

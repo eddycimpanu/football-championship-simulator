@@ -4,11 +4,13 @@ import org.example.engine.event.CardEvent;
 import org.example.engine.event.CornerEvent;
 import org.example.engine.event.FoulEvent;
 import org.example.engine.event.MatchEvent;
+import org.example.engine.event.OffsideEvent;
+import org.example.engine.event.SaveEvent;
 import org.example.engine.event.ShotEvent;
 
-// Team statistics of one match. Stage 20 adds more (offsides, saves).
-public record TeamMatchStats(int goals, int shots, int shotsOnTarget, int corners, int fouls,
-                             int yellowCards, int redCards, int possessionPercent) {
+// Team statistics of one match.
+public record TeamMatchStats(int goals, int shots, int shotsOnTarget, int corners, int fouls, int offsides,
+                             int saves, int yellowCards, int redCards, int possessionPercent) {
 
     public static TeamMatchStats from(MatchContext context, MatchTeam team) {
         int goals = team == context.getHome() ? context.score().home() : context.score().away();
@@ -39,6 +41,8 @@ public record TeamMatchStats(int goals, int shots, int shotsOnTarget, int corner
         return new TeamMatchStats(goals, shots, onTarget,
                 count(context, CornerEvent.class, team),
                 count(context, FoulEvent.class, team),
+                count(context, OffsideEvent.class, team),
+                count(context, SaveEvent.class, team),
                 yellows, reds,
                 context.possessionPercent(team));
     }

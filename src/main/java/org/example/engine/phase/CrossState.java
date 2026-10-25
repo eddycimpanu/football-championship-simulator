@@ -46,8 +46,12 @@ public class CrossState extends PhaseState {
                 .spin(context.random());
 
         return switch (outcome) {
-            case HEADER -> new StateResult(new ShootState(ShotType.HEADER, target, crosser), seconds);
+            case HEADER -> {
+                context.recordKeyPass(crosser);
+                yield new StateResult(new ShootState(ShotType.HEADER, target, crosser), seconds);
+            }
             case DEFENDED -> {
+                context.recordInterception(PlayerPicker.pick(defenders, PlayerAction.DEFEND, context.random()));
                 context.switchPossession();
                 yield new StateResult(new DispossessionState(), seconds);
             }

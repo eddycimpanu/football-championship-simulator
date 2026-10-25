@@ -45,6 +45,7 @@ public class Match {
         MatchTeam away = MatchTeam.prepare(awayTeam, false);
         MatchContext context = new MatchContext(home, away, referee, random);
         MatchTeam firstKickoff = random.chance(0.5) ? home : away;
+        context.registerStartingElevens();
 
         // First half
         context.giveBallTo(firstKickoff);
@@ -72,6 +73,9 @@ public class Match {
         away.applyDisciplineAfterMatch();
         home.applyInjuriesAfterMatch();
         away.applyInjuriesAfterMatch();
+
+        // Minutes played, clean sheets and match ratings
+        context.finishPlayerStats();
 
         result = new MatchResult(context, referee);
         return result;

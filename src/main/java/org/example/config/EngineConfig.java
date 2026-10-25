@@ -58,6 +58,31 @@ public final class EngineConfig {
     public static final int TACTICAL_FROM_MINUTE = 70;
     public static final int KEEP_ONE_SUBSTITUTION_UNTIL = 80;     // a reserve change for injuries
 
+    // ----- Match ratings (from 3.0 to 10.0) -----
+    public static final double RATING_BASE = 6.3;
+    public static final double RATING_GOAL = 0.8;
+    public static final double RATING_ASSIST = 0.5;
+    public static final double RATING_OWN_GOAL = -1.0;
+    public static final double RATING_SHOT_ON_TARGET = 0.1;
+    public static final double RATING_KEY_PASS = 0.15;
+    public static final double RATING_TACKLE = 0.12;
+    public static final double RATING_INTERCEPTION = 0.1;
+    public static final double RATING_FOUL_SUFFERED = 0.05;
+    public static final double RATING_FOUL_COMMITTED = -0.05;
+    public static final double RATING_SAVE = 0.2;
+    public static final double RATING_CLEAN_SHEET_GOALKEEPER = 0.6;
+    public static final double RATING_CLEAN_SHEET_DEFENDER = 0.5;
+    public static final double RATING_GOAL_CONCEDED_GOALKEEPER = -0.3;
+    public static final double RATING_GOAL_CONCEDED_DEFENDER = -0.1;
+    public static final double RATING_WIN = 0.3;
+    public static final double RATING_LOSS = -0.2;
+    public static final double RATING_YELLOW = -0.3;
+    public static final double RATING_RED = -1.5;
+    public static final double RATING_MIN = 3.0;
+    public static final double RATING_MAX = 10.0;
+    public static final int MIN_MINUTES_FOR_RATING = 15;
+    public static final int MIN_MINUTES_FOR_CLEAN_SHEET = 60;
+
     // ----- Durations in seconds (min, max) -----
     public static final int KICKOFF_MIN = 5, KICKOFF_MAX = 10;
     public static final int GOAL_KICK_MIN = 10, GOAL_KICK_MAX = 25;

@@ -1,107 +1,111 @@
 package org.example;
 
-import org.example.config.EngineConfig;
-import org.example.console.MatchReportPrinter;
-import org.example.engine.Match;
-import org.example.engine.MatchResult;
-import org.example.engine.event.CardEvent;
-import org.example.engine.event.CoachCardEvent;
-import org.example.engine.event.EventDisplayMode;
-import org.example.engine.event.InjuryEvent;
-import org.example.engine.event.SubstitutionEvent;
-import org.example.engine.random.RandomProvider;
-import org.example.model.Player;
-import org.example.model.PlayerStatus;
+import org.example.league.Fixture;
+import org.example.league.Round;
+import org.example.league.Season;
 import org.example.model.Referee;
 import org.example.model.Team;
 import org.example.persistence.ConnectionProvider;
 import org.example.persistence.DatabaseConfig;
 import org.example.persistence.LeagueLoader;
 
-import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
 
 public class Main {
 
-    private static final long SEED = 18;
-    private static final int TEST_ROUNDS = 10;
+    private static final String SEASON_NAME = "All-Star League 2026/27";
+    private static final long SEED = 2026;
 
     public static void main(String[] args) {
         LeagueLoader loader = new LeagueLoader(new ConnectionProvider(DatabaseConfig.load()));
         List<Team> teams = loader.loadTeams();
         List<Referee> referees = loader.loadReferees();
-        RandomProvider random = new RandomProvider(SEED);
 
-        // 1. One match with the key events: goals, cards, injuries and substitutions
-        MatchResult classic = new Match(findTeam(teams, "Real Madrid"), findTeam(teams, "Atlético Madrid"),
-                random.pickOne(referees), random).simulate();
-        MatchReportPrinter printer = new MatchReportPrinter();
-        printer.printEvents(classic, EventDisplayMode.KEY);
-        printer.printStats(classic);
+        Season season = Season.create(SEASON_NAME, teams, referees, SEED);
+        System.out.println("=== " + season.getName() + ": " + season.getNumberOfRounds() + " rounds ===");
 
-        // 2. Several rounds with all 20 teams, to see cards and bans over time
+        printRound(season.getRound(1));
+        printRound(season.getRound(20));
+        printTeamSchedule(season, teams.get(0));
+        checkSchedule(season);
+    }
+
+    private static void printRound(Round round) {
         System.out.println();
-        System.out.println("=== " + TEST_ROUNDS + " rounds, 10 matches each ===");
-        int matches = 0, yellows = 0, reds = 0, coachCards = 0, injuries = 0, substitutions = 0;
+        System.out.println(round + ":");
+        for (Fixture fixture : round.getFixtures()) {
+            System.out.printf("  %-20s vs %-20s referee %s%n",
+                    fixture.getHomeTeam().getName(), fixture.getAwayTeam().getName(), fixture.getReferee().getFullName());
+        }
+    }
 
-        for (int round = 1; round <= TEST_ROUNDS; round++) {
-            printUnavailable(round, teams);
+    private static void printTeamSchedule(Season season, Team team) {
+        System.out.println();
+        System.out.println(team.getName() + " schedule (H = home, A = away):");
+        StringBuilder line = new StringBuilder("  ");
+        for (Fixture fixture : season.getFixturesOf(team)) {
+            line.append(fixture.getHomeTeam() == team ? "H" : "A");
+        }
+        System.out.println(line);
+    }
 
-            List<Team> left = new ArrayList<>(teams);
-            while (!left.isEmpty()) {
-                Team home = left.remove(random.nextInt(0, left.size() - 1));
-                Team away = left.remove(random.nextInt(0, left.size() - 1));
-                MatchResult result = new Match(home, away, random.pickOne(referees), random).simulate();
+    // Every rule of a fair schedule, checked automatically
+    private static void checkSchedule(Season season) {
+        List<Team> teams = season.getTeams();
+        boolean eachPairTwiceWithSwappedHome = true;
+        boolean nobodyTwiceInARound = true;
+        boolean nineteenHomeGames = true;
+        boolean differentRefereesPerRound = true;
+        int longestHomeOrAwayRun = 0;
+        int mostGamesSameRefereeSameTeam = 0;
 
-                matches++;
-                yellows += result.getHomeStats().yellowCards() + result.getAwayStats().yellowCards();
-                reds += result.getHomeStats().redCards() + result.getAwayStats().redCards();
-                coachCards += result.getEventsOfType(CoachCardEvent.class).size();
-                substitutions += result.getEventsOfType(SubstitutionEvent.class).size();
-                for (CardEvent card : result.getEventsOfType(CardEvent.class)) {
-                    if (card.isSendingOff()) {
-                        System.out.println("  " + card.getMinute() + " " + card.describe() + "   in " + result);
-                    }
-                }
-                for (InjuryEvent injury : result.getEventsOfType(InjuryEvent.class)) {
-                    injuries++;
-                    System.out.println("  " + injury.getMinute() + " " + injury.describe() + "   in " + result);
+        Set<String> homeAwayPairs = new HashSet<>();
+        Map<String, Integer> refereeWithTeam = new HashMap<>();
+        for (Round round : season.getRounds()) {
+            Set<Team> playing = new HashSet<>();
+            Set<Referee> refs = new HashSet<>();
+            for (Fixture fixture : round.getFixtures()) {
+                nobodyTwiceInARound &= playing.add(fixture.getHomeTeam()) & playing.add(fixture.getAwayTeam());
+                differentRefereesPerRound &= refs.add(fixture.getReferee());
+                eachPairTwiceWithSwappedHome &= homeAwayPairs.add(fixture.getHomeTeam().getName() + ">" + fixture.getAwayTeam().getName());
+                for (Team team : List.of(fixture.getHomeTeam(), fixture.getAwayTeam())) {
+                    int times = refereeWithTeam.merge(fixture.getReferee().getLastName() + "/" + team.getName(), 1, Integer::sum);
+                    mostGamesSameRefereeSameTeam = Math.max(mostGamesSameRefereeSameTeam, times);
                 }
             }
-            recoverAll(teams);
+        }
+        eachPairTwiceWithSwappedHome &= homeAwayPairs.size() == teams.size() * (teams.size() - 1);
+
+        for (Team team : teams) {
+            List<Fixture> fixtures = season.getFixturesOf(team);
+            long home = fixtures.stream().filter(f -> f.getHomeTeam() == team).count();
+            nineteenHomeGames &= home == teams.size() - 1;
+            int run = 0;
+            Boolean lastWasHome = null;
+            for (Fixture fixture : fixtures) {
+                boolean atHome = fixture.getHomeTeam() == team;
+                run = (lastWasHome != null && lastWasHome == atHome) ? run + 1 : 1;
+                lastWasHome = atHome;
+                longestHomeOrAwayRun = Math.max(longestHomeOrAwayRun, run);
+            }
         }
 
         System.out.println();
-        System.out.printf("Yellow cards per match: %.2f   (real football: 3.5 - 4.5)%n", (double) yellows / matches);
-        System.out.printf("Red cards per match:    %.2f   (real football: 0.1 - 0.2)%n", (double) reds / matches);
-        System.out.printf("Coach cards per match:  %.2f%n", (double) coachCards / matches);
-        System.out.printf("Injuries per match:     %.2f   (about one every 3 - 4 matches)%n", (double) injuries / matches);
-        System.out.printf("Substitutions per team: %.2f   (real football: 4 - 4.5 of 5)%n", substitutions / (2.0 * matches));
+        System.out.println("=== Schedule checks ===");
+        System.out.println("Matches:                          " + season.getRounds().size() * season.getRound(1).getFixtures().size() + " (expected 380)");
+        System.out.println("Every pair twice, home swapped:   " + ok(eachPairTwiceWithSwappedHome));
+        System.out.println("Nobody plays twice in a round:    " + ok(nobodyTwiceInARound));
+        System.out.println("19 home games for every team:     " + ok(nineteenHomeGames));
+        System.out.println("10 different referees per round:  " + ok(differentRefereesPerRound));
+        System.out.println("Longest home or away run:         " + longestHomeOrAwayRun + " games");
+        System.out.println("Same referee with same team, max: " + mostGamesSameRefereeSameTeam + " of 38 games");
     }
 
-    private static void printUnavailable(int round, List<Team> teams) {
-        System.out.println("Round " + round + ":");
-        for (Team team : teams) {
-            for (Player player : team.getSquad()) {
-                if (player.getStatus() != PlayerStatus.AVAILABLE) {
-                    System.out.println("  " + player.getStatus() + ": " + player.getFullName() + " (" + team.getName() + ")");
-                }
-            }
-        }
-    }
-
-    private static void recoverAll(List<Team> teams) {
-        for (Team team : teams) {
-            for (Player player : team.getSquad()) {
-                player.recoverCondition(EngineConfig.CONDITION_RECOVERY_PER_ROUND);
-            }
-        }
-    }
-
-    private static Team findTeam(List<Team> teams, String name) {
-        return teams.stream()
-                .filter(team -> team.getName().equals(name))
-                .findFirst()
-                .orElseThrow(() -> new IllegalArgumentException("Team not found: " + name));
+    private static String ok(boolean value) {
+        return value ? "OK" : "FAILED";
     }
 }

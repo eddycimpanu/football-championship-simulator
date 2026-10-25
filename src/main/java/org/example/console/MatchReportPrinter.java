@@ -1,6 +1,7 @@
 package org.example.console;
 
 import org.example.engine.MatchResult;
+import org.example.engine.PlayerMatchStats;
 import org.example.engine.TeamMatchStats;
 import org.example.engine.event.EventDisplayMode;
 import org.example.engine.event.MatchEvent;
@@ -46,9 +47,35 @@ public class MatchReportPrinter {
         printStat("On target", home, away, TeamMatchStats::shotsOnTarget);
         printStat("Corners", home, away, TeamMatchStats::corners);
         printStat("Fouls", home, away, TeamMatchStats::fouls);
+        printStat("Offsides", home, away, TeamMatchStats::offsides);
+        printStat("Saves", home, away, TeamMatchStats::saves);
         printStat("Yellow cards", home, away, TeamMatchStats::yellowCards);
         printStat("Red cards", home, away, TeamMatchStats::redCards);
         printStat("Possession %", home, away, TeamMatchStats::possessionPercent);
+    }
+
+    public void printPlayerStats(MatchResult result) {
+        printPlayerTable(result.getHomeTeam(), result.getHomePlayerStats());
+        printPlayerTable(result.getAwayTeam(), result.getAwayPlayerStats());
+        result.getManOfTheMatch().ifPresent(best -> System.out.println("Man of the match: "
+                + best.getPlayer().getFullName() + " (" + best.getTeam().getName() + "), rating " + best.getRating()));
+    }
+
+    private void printPlayerTable(Team team, List<PlayerMatchStats> players) {
+        System.out.println();
+        System.out.println("=== " + team.getName() + " players ===");
+        System.out.printf("  %-26s %-4s %4s %3s %3s %6s %3s %4s %4s %4s %5s %3s %6s%n",
+                "Player", "Pos", "Min", "G", "A", "Sh(OT)", "KP", "Tkl", "Int", "Fls", "Cards", "Sv", "Rating");
+        for (PlayerMatchStats stats : players) {
+            String cards = "Y".repeat(stats.getYellowCards()) + "R".repeat(stats.getRedCards());
+            String name = (stats.isStarter() ? "" : "  ") + stats.getPlayer().getFullName();
+            System.out.printf("  %-26s %-4s %4d %3d %3d %6s %3d %4d %4d %4d %5s %3d %6s%n",
+                    name, stats.getPlayer().getPosition(), stats.getMinutesPlayed(),
+                    stats.getGoals(), stats.getAssists(), stats.getShots() + "(" + stats.getShotsOnTarget() + ")",
+                    stats.getKeyPasses(), stats.getTackles(), stats.getInterceptions(), stats.getFoulsCommitted(),
+                    cards.isEmpty() ? "-" : cards, stats.getSaves(),
+                    stats.isRated() ? String.format("%.1f", stats.getRating()) : "-");
+        }
     }
 
     private void printStat(String name, TeamMatchStats home, TeamMatchStats away, ToIntFunction<TeamMatchStats> value) {

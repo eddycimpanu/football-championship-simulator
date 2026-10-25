@@ -6,8 +6,10 @@ import org.example.model.Player;
 import org.example.model.Referee;
 import org.example.model.Team;
 
+import java.util.Comparator;
 import java.util.List;
 import java.util.Optional;
+import java.util.stream.Stream;
 
 // Everything that is left after the final whistle. Immutable.
 public class MatchResult {
@@ -24,6 +26,8 @@ public class MatchResult {
     private final TeamMatchStats homeStats;
     private final TeamMatchStats awayStats;
     private final List<MatchEvent> events;
+    private final List<PlayerMatchStats> homePlayerStats;
+    private final List<PlayerMatchStats> awayPlayerStats;
 
     public MatchResult(MatchContext context, Referee referee) {
         this.homeTeam = context.getHome().getTeam();
@@ -35,6 +39,8 @@ public class MatchResult {
         this.homeStats = TeamMatchStats.from(context, context.getHome());
         this.awayStats = TeamMatchStats.from(context, context.getAway());
         this.events = context.events().getEvents();
+        this.homePlayerStats = List.copyOf(context.playerStatsOf(homeTeam));
+        this.awayPlayerStats = List.copyOf(context.playerStatsOf(awayTeam));
     }
 
     // ----- Result -----
@@ -57,6 +63,32 @@ public class MatchResult {
             return POINTS_FOR_DRAW;
         }
         return getWinner().orElseThrow() == team ? POINTS_FOR_WIN : 0;
+    }
+
+    // ----- Player statistics -----
+
+    public List<PlayerMatchStats> getHomePlayerStats() {
+        return homePlayerStats;
+    }
+
+    public List<PlayerMatchStats> getAwayPlayerStats() {
+        return awayPlayerStats;
+    }
+
+    public List<PlayerMatchStats> getAllPlayerStats() {
+        return Stream.concat(homePlayerStats.stream(), awayPlayerStats.stream()).toList();
+    }
+
+    public Optional<PlayerMatchStats> statsOf(Player player) {
+        return getAllPlayerStats().stream().filter(stats -> stats.getPlayer() == player).findFirst();
+    }
+
+    // The best rating of the match; with equal ratings, more goals and assists win.
+    public Optional<PlayerMatchStats> getManOfTheMatch() {
+        return getAllPlayerStats().stream()
+                .filter(PlayerMatchStats::isRated)
+                .max(Comparator.comparingDouble(PlayerMatchStats::getRating)
+                        .thenComparingInt(stats -> stats.getGoals() + stats.getAssists()));
     }
 
     // ----- Events -----
