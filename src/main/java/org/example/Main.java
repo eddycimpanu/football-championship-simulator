@@ -1,19 +1,22 @@
 package org.example;
 
+import org.example.config.EngineConfig;
+import org.example.console.LeagueTablePrinter;
 import org.example.league.Fixture;
+import org.example.league.LeagueTable;
 import org.example.league.Round;
 import org.example.league.Season;
+import org.example.league.StandingRow;
+import org.example.model.Coach;
+import org.example.model.Formation;
+import org.example.model.Player;
 import org.example.model.Referee;
 import org.example.model.Team;
 import org.example.persistence.ConnectionProvider;
 import org.example.persistence.DatabaseConfig;
 import org.example.persistence.LeagueLoader;
 
-import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
-import java.util.Map;
-import java.util.Set;
 
 public class Main {
 
@@ -21,91 +24,66 @@ public class Main {
     private static final long SEED = 2026;
 
     public static void main(String[] args) {
+        testHeadToHead();
+
         LeagueLoader loader = new LeagueLoader(new ConnectionProvider(DatabaseConfig.load()));
         List<Team> teams = loader.loadTeams();
         List<Referee> referees = loader.loadReferees();
 
+        // A temporary season loop: stage 23 moves it into SeasonService, with saving to the database
         Season season = Season.create(SEASON_NAME, teams, referees, SEED);
-        System.out.println("=== " + season.getName() + ": " + season.getNumberOfRounds() + " rounds ===");
+        LeagueTablePrinter printer = new LeagueTablePrinter();
 
-        printRound(season.getRound(1));
-        printRound(season.getRound(20));
-        printTeamSchedule(season, teams.get(0));
-        checkSchedule(season);
-    }
-
-    private static void printRound(Round round) {
-        System.out.println();
-        System.out.println(round + ":");
-        for (Fixture fixture : round.getFixtures()) {
-            System.out.printf("  %-20s vs %-20s referee %s%n",
-                    fixture.getHomeTeam().getName(), fixture.getAwayTeam().getName(), fixture.getReferee().getFullName());
-        }
-    }
-
-    private static void printTeamSchedule(Season season, Team team) {
-        System.out.println();
-        System.out.println(team.getName() + " schedule (H = home, A = away):");
-        StringBuilder line = new StringBuilder("  ");
-        for (Fixture fixture : season.getFixturesOf(team)) {
-            line.append(fixture.getHomeTeam() == team ? "H" : "A");
-        }
-        System.out.println(line);
-    }
-
-    // Every rule of a fair schedule, checked automatically
-    private static void checkSchedule(Season season) {
-        List<Team> teams = season.getTeams();
-        boolean eachPairTwiceWithSwappedHome = true;
-        boolean nobodyTwiceInARound = true;
-        boolean nineteenHomeGames = true;
-        boolean differentRefereesPerRound = true;
-        int longestHomeOrAwayRun = 0;
-        int mostGamesSameRefereeSameTeam = 0;
-
-        Set<String> homeAwayPairs = new HashSet<>();
-        Map<String, Integer> refereeWithTeam = new HashMap<>();
-        for (Round round : season.getRounds()) {
-            Set<Team> playing = new HashSet<>();
-            Set<Referee> refs = new HashSet<>();
+        while (!season.isFinished()) {
+            Round round = season.getNextRound().orElseThrow();
             for (Fixture fixture : round.getFixtures()) {
-                nobodyTwiceInARound &= playing.add(fixture.getHomeTeam()) & playing.add(fixture.getAwayTeam());
-                differentRefereesPerRound &= refs.add(fixture.getReferee());
-                eachPairTwiceWithSwappedHome &= homeAwayPairs.add(fixture.getHomeTeam().getName() + ">" + fixture.getAwayTeam().getName());
-                for (Team team : List.of(fixture.getHomeTeam(), fixture.getAwayTeam())) {
-                    int times = refereeWithTeam.merge(fixture.getReferee().getLastName() + "/" + team.getName(), 1, Integer::sum);
-                    mostGamesSameRefereeSameTeam = Math.max(mostGamesSameRefereeSameTeam, times);
-                }
+                fixture.play(season.getRandom());
             }
-        }
-        eachPairTwiceWithSwappedHome &= homeAwayPairs.size() == teams.size() * (teams.size() - 1);
+            recoverAll(teams);
 
-        for (Team team : teams) {
-            List<Fixture> fixtures = season.getFixturesOf(team);
-            long home = fixtures.stream().filter(f -> f.getHomeTeam() == team).count();
-            nineteenHomeGames &= home == teams.size() - 1;
-            int run = 0;
-            Boolean lastWasHome = null;
-            for (Fixture fixture : fixtures) {
-                boolean atHome = fixture.getHomeTeam() == team;
-                run = (lastWasHome != null && lastWasHome == atHome) ? run + 1 : 1;
-                lastWasHome = atHome;
-                longestHomeOrAwayRun = Math.max(longestHomeOrAwayRun, run);
+            if (round.getNumber() == 19) {
+                printer.print("Table after round 19 (half-time of the season)", season.getTable());
             }
         }
 
+        LeagueTable table = season.getTable();
+        printer.print(season.getName() + ": final table", table);
         System.out.println();
-        System.out.println("=== Schedule checks ===");
-        System.out.println("Matches:                          " + season.getRounds().size() * season.getRound(1).getFixtures().size() + " (expected 380)");
-        System.out.println("Every pair twice, home swapped:   " + ok(eachPairTwiceWithSwappedHome));
-        System.out.println("Nobody plays twice in a round:    " + ok(nobodyTwiceInARound));
-        System.out.println("19 home games for every team:     " + ok(nineteenHomeGames));
-        System.out.println("10 different referees per round:  " + ok(differentRefereesPerRound));
-        System.out.println("Longest home or away run:         " + longestHomeOrAwayRun + " games");
-        System.out.println("Same referee with same team, max: " + mostGamesSameRefereeSameTeam + " of 38 games");
+        System.out.println("Champion: " + table.getLeader().getTeam().getName()
+                + " with " + table.getLeader().getPoints() + " points");
     }
 
-    private static String ok(boolean value) {
-        return value ? "OK" : "FAILED";
+    // All four teams finish on 4 points with goal difference 0.
+    // Delta scored more goals; Alpha, Beta and Gamma are level on everything, so head-to-head decides.
+    private static void testHeadToHead() {
+        Coach coach = new Coach(1, "Test", "Coach", "Romania", 50, Formation.FOUR_FOUR_TWO);
+        Team alpha = new Team(1, "Alpha", "ALP", "A", "Arena A", coach);
+        Team beta = new Team(2, "Beta", "BET", "B", "Arena B", coach);
+        Team gamma = new Team(3, "Gamma", "GAM", "C", "Arena C", coach);
+        Team delta = new Team(4, "Delta", "DEL", "D", "Arena D", coach);
+
+        LeagueTable table = new LeagueTable(List.of(alpha, beta, gamma, delta));
+        table.record(alpha, beta, 0, 1);    // between Alpha, Beta and Gamma:
+        table.record(beta, gamma, 0, 0);    //   Beta 4 pts, Alpha 3 pts, Gamma 1 pt
+        table.record(gamma, alpha, 0, 1);
+        table.record(delta, alpha, 1, 1);
+        table.record(delta, beta, 2, 1);
+        table.record(gamma, delta, 2, 1);
+
+        System.out.println("=== Head-to-head test ===");
+        for (StandingRow row : table.getStandings()) {
+            System.out.printf("  %-6s %d pts, GD %+d, GF %d%n", row.getTeam().getName(),
+                    row.getPoints(), row.getGoalDifference(), row.getGoalsFor());
+        }
+        System.out.println("  Expected: Delta (more goals), then Beta, Alpha, Gamma (head-to-head)");
+        System.out.println();
+    }
+
+    private static void recoverAll(List<Team> teams) {
+        for (Team team : teams) {
+            for (Player player : team.getSquad()) {
+                player.recoverCondition(EngineConfig.CONDITION_RECOVERY_PER_ROUND);
+            }
+        }
     }
 }

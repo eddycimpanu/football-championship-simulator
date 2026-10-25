@@ -50,6 +50,16 @@ public class Season {
         return rounds.get(number - 1);
     }
 
+    // The table is always built from the matches already played, so it can never disagree with them.
+    public LeagueTable getTable() {
+        LeagueTable table = new LeagueTable(teams);
+        rounds.stream()
+                .flatMap(round -> round.getFixtures().stream())
+                .filter(Fixture::isPlayed)
+                .forEach(fixture -> table.record(fixture.getResult()));
+        return table;
+    }
+
     public List<Fixture> getFixturesOf(Team team) {
         return rounds.stream()
                 .flatMap(round -> round.getFixtures().stream())
