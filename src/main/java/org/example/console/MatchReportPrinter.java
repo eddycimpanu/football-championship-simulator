@@ -46,6 +46,8 @@ public class MatchReportPrinter {
         printStat("On target", home, away, TeamMatchStats::shotsOnTarget);
         printStat("Corners", home, away, TeamMatchStats::corners);
         printStat("Fouls", home, away, TeamMatchStats::fouls);
+        printStat("Yellow cards", home, away, TeamMatchStats::yellowCards);
+        printStat("Red cards", home, away, TeamMatchStats::redCards);
         printStat("Possession %", home, away, TeamMatchStats::possessionPercent);
     }
 

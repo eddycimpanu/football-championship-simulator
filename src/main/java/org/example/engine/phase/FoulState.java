@@ -1,6 +1,7 @@
 package org.example.engine.phase;
 
 import org.example.config.EngineConfig;
+import org.example.engine.CardDecider;
 import org.example.engine.MatchContext;
 import org.example.engine.event.FoulEvent;
 import org.example.model.Player;
@@ -22,14 +23,17 @@ public class FoulState extends PhaseState {
         context.addEvent(new FoulEvent(context.minute(), context.defendingTeam().getTeam(), fouler, fouled));
         int seconds = duration(context, EngineConfig.FOUL_MIN, EngineConfig.FOUL_MAX);
 
-        // Card check (no card, yellow or red) is added in stage 18.
-
         // Inside or outside the box? Fouls during a cross happen in the box much more often.
         double insideChance = duringCross ? EngineConfig.PENALTY_CHANCE_FROM_CROSS : EngineConfig.PENALTY_CHANCE_OPEN_PLAY;
         insideChance *= context.attributes(fouler).aggression() / EngineConfig.REFERENCE_ATTRIBUTE;
+        boolean penalty = context.random().chance(Math.min(1, insideChance));
+
+        // Card check: no card, yellow or red. Then the coach of the penalised team may protest.
+        CardDecider.afterFoul(context, fouler, penalty);
+        CardDecider.coachProtest(context, context.defendingTeam());
 
         // The fouled team keeps the ball
-        if (context.random().chance(Math.min(1, insideChance))) {
+        if (penalty) {
             return new StateResult(new PenaltyState(), seconds);
         }
         return new StateResult(new FreeKickState(true), seconds);

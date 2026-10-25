@@ -29,6 +29,20 @@ public final class EngineConfig {
     public static final double CONDITION_COST_PER_ENERGY = 0.8;   // condition lost after the match per energy used
     public static final int CONDITION_RECOVERY_PER_ROUND = 20;    // condition back between two rounds
 
+    // ----- Discipline -----
+    public static final double AVERAGE_REFEREE_STRICTNESS = 68;   // a referee with this strictness is "normal"
+    public static final double CARD_NONE = 80;                   // after a foul: no card / yellow / red
+    public static final double CARD_YELLOW = 20;
+    public static final double CARD_RED = 0.28;
+    public static final double SERIOUS_FOUL_YELLOW_FACTOR = 2;   // a foul that gives a penalty
+    public static final double SERIOUS_FOUL_RED_FACTOR = 5;
+    public static final double BOOKED_PLAYER_YELLOW_FACTOR = 0.15; // a booked player is careful and gets the benefit of the doubt
+    public static final double COACH_NO_CARD = 98.8;             // the coach protests after a foul
+    public static final double COACH_YELLOW = 1.0;
+    public static final double COACH_RED = 0.1;
+    public static final double RED_CARD_FACTOR = 0.90;           // a team with 10 men is 10% weaker
+    public static final int MIN_PLAYERS_ON_PITCH = 7;            // below this the match is abandoned
+
     // ----- Durations in seconds (min, max) -----
     public static final int KICKOFF_MIN = 5, KICKOFF_MAX = 10;
     public static final int GOAL_KICK_MIN = 10, GOAL_KICK_MAX = 25;

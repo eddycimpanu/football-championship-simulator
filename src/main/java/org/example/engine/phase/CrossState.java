@@ -35,7 +35,7 @@ public class CrossState extends PhaseState {
         double defence = (defenders.averageOf(Attribute.HEADING, FieldRole.DEFENDER)
                 + defenders.averageOf(Attribute.PHYSICAL, FieldRole.DEFENDER)
                 + context.attributes(defenders.getGoalkeeper()).handling()) / 3.0;
-        double skill = SkillFactor.of(attack, defence) * context.homeFactor();
+        double skill = SkillFactor.of(attack, defence) * context.matchupFactor();
         double aggression = defenders.averageOf(Attribute.AGGRESSION, FieldRole.DEFENDER) / EngineConfig.REFERENCE_ATTRIBUTE;
 
         Outcome outcome = new RouletteWheel<Outcome>()

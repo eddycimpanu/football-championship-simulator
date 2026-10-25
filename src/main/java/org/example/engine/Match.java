@@ -43,7 +43,7 @@ public class Match {
 
         MatchTeam home = MatchTeam.prepare(homeTeam, true);
         MatchTeam away = MatchTeam.prepare(awayTeam, false);
-        MatchContext context = new MatchContext(home, away, random);
+        MatchContext context = new MatchContext(home, away, referee, random);
         MatchTeam firstKickoff = random.chance(0.5) ? home : away;
 
         // First half
@@ -65,6 +65,10 @@ public class Match {
         home.applyConditionLoss();
         away.applyConditionLoss();
 
+        // Bans served, yellow cards counted, red cards turned into suspensions
+        home.applyDisciplineAfterMatch();
+        away.applyDisciplineAfterMatch();
+
         result = new MatchResult(context, referee);
         return result;
     }
@@ -72,7 +76,7 @@ public class Match {
     // Phase after phase until the half is over. A phase that has started is never cut in the middle.
     private void playHalf(MatchContext context) {
         PhaseState next = new KickoffState();
-        while (!context.clock().isPeriodOver()) {
+        while (!context.clock().isPeriodOver() && !context.isAbandoned()) {
             PhaseSummary phase = phaseRunner.run(next, context);
             if (context.clock().isRegulationTimeOver() && !context.clock().isStoppageTimeAnnounced()) {
                 context.clock().announceStoppageTime(random);

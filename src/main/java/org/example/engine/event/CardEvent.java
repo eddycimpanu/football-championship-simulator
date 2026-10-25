@@ -18,6 +18,14 @@ public class CardEvent extends KeyMatchEvent {
             this.label = label;
             this.eventType = eventType;
         }
+
+        public String getLabel() {
+            return label;
+        }
+
+        public boolean isSendingOff() {
+            return this != YELLOW;
+        }
     }
 
     private final Player player;
@@ -43,7 +51,7 @@ public class CardEvent extends KeyMatchEvent {
     }
 
     public boolean isSendingOff() {
-        return cardType != CardType.YELLOW;
+        return cardType.isSendingOff();
     }
 
     public Player getPlayer() { return player; }

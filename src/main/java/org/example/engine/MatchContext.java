@@ -7,11 +7,13 @@ import org.example.engine.event.MatchEventLog;
 import org.example.engine.random.RandomProvider;
 import org.example.model.Player;
 import org.example.model.PlayerAttributes;
+import org.example.model.Referee;
 
 public class MatchContext {
 
     private final MatchTeam home;
     private final MatchTeam away;
+    private final Referee referee;
     private final RandomProvider random;
     private final MatchClock clock = new MatchClock();
     private final MatchEventLog events = new MatchEventLog();
@@ -21,9 +23,10 @@ public class MatchContext {
     private int homePossessionSeconds;
     private int awayPossessionSeconds;
 
-    public MatchContext(MatchTeam home, MatchTeam away, RandomProvider random) {
+    public MatchContext(MatchTeam home, MatchTeam away, Referee referee, RandomProvider random) {
         this.home = home;
         this.away = away;
+        this.referee = referee;
         this.random = random;
         this.inPossession = home;
     }
@@ -38,7 +41,11 @@ public class MatchContext {
 
     // The attributes of a player right now, fatigue included.
     public PlayerAttributes attributes(Player player) {
-        return home.has(player) ? home.attributesOf(player) : away.attributesOf(player);
+        return teamOf(player).attributesOf(player);
+    }
+
+    public MatchTeam teamOf(Player player) {
+        return home.has(player) ? home : away;
     }
 
     // ----- Possession -----
@@ -86,6 +93,23 @@ public class MatchContext {
         return inPossession.isHome() ? EngineConfig.HOME_ADVANTAGE : 1 / EngineConfig.HOME_ADVANTAGE;
     }
 
+    // Home advantage plus red cards: a team with fewer players is weaker.
+    public double matchupFactor() {
+        return homeFactor() * attackingTeam().manpowerFactor() / defendingTeam().manpowerFactor();
+    }
+
+    // ----- Referee -----
+
+    public double refereeStrictness() {
+        return referee == null ? EngineConfig.AVERAGE_REFEREE_STRICTNESS : referee.getStrictness();
+    }
+
+    // Extremely rare: a team with fewer than 7 players cannot go on.
+    public boolean isAbandoned() {
+        return home.playersOnPitch() < EngineConfig.MIN_PLAYERS_ON_PITCH
+                || away.playersOnPitch() < EngineConfig.MIN_PLAYERS_ON_PITCH;
+    }
+
     // ----- Events and goals -----
 
     public MatchMinute minute() {
@@ -104,6 +128,7 @@ public class MatchContext {
 
     public MatchTeam getHome() { return home; }
     public MatchTeam getAway() { return away; }
+    public Referee getReferee() { return referee; }
     public RandomProvider random() { return random; }
     public MatchClock clock() { return clock; }
     public MatchEventLog events() { return events; }

@@ -14,6 +14,8 @@ import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
+import java.util.HashSet;
 import java.util.function.ToIntFunction;
 
 public class MatchTeam {
@@ -27,6 +29,12 @@ public class MatchTeam {
     private final Map<Player, Double> energy = new HashMap<>();
     private final Map<Player, Double> energyUsed = new HashMap<>();
 
+    private final List<Player> unavailableAtKickoff;
+    private final Map<Player, Integer> yellowCards = new HashMap<>();
+    private final Set<Player> sentOff = new HashSet<>();
+    private boolean coachHasYellow;
+    private boolean coachSentOff;
+
     private MatchTeam(Team team, boolean home, Lineup lineup) {
         this.team = team;
         this.home = home;
@@ -39,6 +47,7 @@ public class MatchTeam {
         for (Player player : bench) {
             energy.put(player, (double) player.getCondition());
         }
+        this.unavailableAtKickoff = team.getSquad().stream().filter(p -> !p.isAvailable()).toList();
     }
 
     // The coach picks the starting eleven and the bench.
@@ -82,6 +91,62 @@ public class MatchTeam {
     public void applyConditionLoss() {
         energyUsed.forEach((player, used) ->
                 player.reduceCondition((int) Math.round(used * EngineConfig.CONDITION_COST_PER_ENERGY)));
+    }
+
+    // ----- Discipline -----
+
+    // Returns true when this is his second yellow card: he is sent off.
+    public boolean giveYellowCard(Player player) {
+        int cards = yellowCards.merge(player, 1, Integer::sum);
+        if (cards >= 2) {
+            sendOff(player);
+            return true;
+        }
+        return false;
+    }
+
+    public boolean hasYellowCard(Player player) {
+        return yellowCards.getOrDefault(player, 0) > 0;
+    }
+
+    // A player who is sent off leaves the pitch and cannot be replaced.
+    public void sendOff(Player player) {
+        if (onPitch.remove(player)) {
+            sentOff.add(player);
+        }
+    }
+
+    public boolean giveCoachYellowCard() {
+        if (coachHasYellow) {
+            sendOffCoach();
+            return true;
+        }
+        coachHasYellow = true;
+        return false;
+    }
+
+    public void sendOffCoach() {
+        coachSentOff = true;
+    }
+
+    // 11 players = 1.0, 10 players = 0.9, 9 players = 0.81 ...
+    public double manpowerFactor() {
+        return Math.pow(EngineConfig.RED_CARD_FACTOR, sentOff.size());
+    }
+
+    // After the final whistle: bans served, yellow cards counted, red cards punished.
+    public void applyDisciplineAfterMatch() {
+        for (Player player : unavailableAtKickoff) {
+            player.missMatch();
+        }
+        yellowCards.forEach((player, cards) -> {
+            if (cards == 1 && !sentOff.contains(player)) {
+                player.addYellowCard();
+            }
+        });
+        for (Player player : sentOff) {
+            player.suspend(1);
+        }
     }
 
     // ----- Ratings, always from the players on the pitch right now -----
@@ -130,11 +195,30 @@ public class MatchTeam {
         return energy.containsKey(player);
     }
 
+    public boolean isOnPitch(Player player) {
+        return onPitch.contains(player);
+    }
+
+    public int playersOnPitch() {
+        return onPitch.size();
+    }
+
+    public List<Player> getSentOff() {
+        return List.copyOf(sentOff);
+    }
+
+    public boolean isCoachSentOff() {
+        return coachSentOff;
+    }
+
+    // If the goalkeeper was sent off, the outfield player with the best hands goes in goal.
     public Player getGoalkeeper() {
         return onPitch.stream()
                 .filter(p -> p.getFieldRole() == FieldRole.GOALKEEPER)
                 .findFirst()
-                .orElseGet(() -> onPitch.get(0));
+                .orElseGet(() -> onPitch.stream()
+                        .max(Comparator.comparingInt(p -> p.getAttributes().reflexes() + p.getAttributes().handling()))
+                        .orElseThrow());
     }
 
     public List<Player> getOutfieldPlayers() {

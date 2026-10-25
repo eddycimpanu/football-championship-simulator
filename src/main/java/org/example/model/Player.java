@@ -3,6 +3,7 @@ package org.example.model;
 public class Player extends Person {
 
     public static final int MAX_CONDITION = 100;
+    public static final int YELLOW_CARDS_FOR_BAN = 5;
 
     private final int shirtNumber;
     private final DetailedPosition position;
@@ -10,7 +11,9 @@ public class Player extends Person {
     private final PlayerAttributes attributes;
 
     private int condition;
-    private PlayerStatus status;
+    private int yellowCardsAccumulated;
+    private int matchesSuspended;
+    private int matchesInjured;
 
     public Player(int id, String firstName, String lastName, String nationality, int age,
                   int shirtNumber, DetailedPosition position, PreferredFoot preferredFoot,
@@ -27,15 +30,6 @@ public class Player extends Person {
         this.preferredFoot = preferredFoot == null ? PreferredFoot.RIGHT : preferredFoot;
         this.attributes = attributes;
         this.condition = MAX_CONDITION;
-        this.status = PlayerStatus.AVAILABLE;
-    }
-
-    public int getOverall() {
-        return getOverallAs(position);
-    }
-
-    public int getOverallAs(DetailedPosition otherPosition) {
-        return OverallCalculators.forPosition(otherPosition).calculate(attributes);
     }
 
     @Override
@@ -47,9 +41,15 @@ public class Player extends Person {
         return position.getFieldRole();
     }
 
-    public boolean isAvailable() {
-        return status == PlayerStatus.AVAILABLE;
+    public int getOverall() {
+        return getOverallAs(position);
     }
+
+    public int getOverallAs(DetailedPosition otherPosition) {
+        return OverallCalculators.forPosition(otherPosition).calculate(attributes);
+    }
+
+    // ----- Condition -----
 
     public void reduceCondition(int amount) {
         condition = Math.max(0, condition - Math.abs(amount));
@@ -59,19 +59,67 @@ public class Player extends Person {
         condition = Math.min(MAX_CONDITION, condition + Math.abs(amount));
     }
 
-    public void setStatus(PlayerStatus status) {
-        if (status == null) {
-            throw new IllegalArgumentException("Status cannot be null");
+    // ----- Discipline -----
+
+    // Returns true when this yellow card completes a ban (5 yellows); the counter then starts again.
+    public boolean addYellowCard() {
+        yellowCardsAccumulated++;
+        if (yellowCardsAccumulated >= YELLOW_CARDS_FOR_BAN) {
+            yellowCardsAccumulated = 0;
+            suspend(1);
+            return true;
         }
-        this.status = status;
+        return false;
     }
+
+    public void suspend(int matches) {
+        if (matches <= 0) {
+            throw new IllegalArgumentException("A ban must be at least one match");
+        }
+        matchesSuspended += matches;
+    }
+
+    public void injure(int matches) {
+        if (matches <= 0) {
+            throw new IllegalArgumentException("An injury must last at least one match");
+        }
+        matchesInjured = Math.max(matchesInjured, matches);
+    }
+
+    // Called once for every match of his team that he could not play.
+    public void missMatch() {
+        if (matchesSuspended > 0) {
+            matchesSuspended--;
+        }
+        if (matchesInjured > 0) {
+            matchesInjured--;
+        }
+    }
+
+    public PlayerStatus getStatus() {
+        if (matchesInjured > 0) {
+            return PlayerStatus.INJURED;
+        }
+        if (matchesSuspended > 0) {
+            return PlayerStatus.SUSPENDED;
+        }
+        return PlayerStatus.AVAILABLE;
+    }
+
+    public boolean isAvailable() {
+        return getStatus() == PlayerStatus.AVAILABLE;
+    }
+
+    // ----- Getters -----
 
     public int getShirtNumber() { return shirtNumber; }
     public DetailedPosition getPosition() { return position; }
     public PreferredFoot getPreferredFoot() { return preferredFoot; }
     public PlayerAttributes getAttributes() { return attributes; }
     public int getCondition() { return condition; }
-    public PlayerStatus getStatus() { return status; }
+    public int getYellowCardsAccumulated() { return yellowCardsAccumulated; }
+    public int getMatchesSuspended() { return matchesSuspended; }
+    public int getMatchesInjured() { return matchesInjured; }
 
     @Override
     public String toString() {

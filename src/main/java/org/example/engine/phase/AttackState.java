@@ -27,7 +27,7 @@ public class AttackState extends PhaseState {
         int seconds = duration(context, EngineConfig.ATTACK_MIN, EngineConfig.ATTACK_MAX);
 
         // Team attack vs team defence, plus home advantage
-        double skill = SkillFactor.of(attackers.getAttackRating(), defenders.getDefenceRating()) * context.homeFactor();
+        double skill = SkillFactor.of(attackers.getAttackRating(), defenders.getDefenceRating()) * context.matchupFactor();
         // Aggressive defenders commit more fouls
         double aggression = defenders.averageOf(Attribute.AGGRESSION, FieldRole.DEFENDER, FieldRole.MIDFIELDER)
                 / EngineConfig.REFERENCE_ATTRIBUTE;
