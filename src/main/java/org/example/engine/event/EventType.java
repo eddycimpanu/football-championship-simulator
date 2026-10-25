@@ -1,0 +1,9 @@
+package org.example.engine.event;
+
+public enum EventType {
+    KICK_OFF, HALF_TIME, SECOND_HALF, FULL_TIME,
+    GOAL, OWN_GOAL,
+    YELLOW_CARD, SECOND_YELLOW, RED_CARD,
+    SUBSTITUTION, INJURY,
+    SHOT, SAVE, CORNER, FOUL, OFFSIDE
+}
