@@ -1,111 +1,79 @@
 package org.example;
 
-import org.example.engine.ShotOutcome;
+import org.example.engine.MatchClock;
+import org.example.engine.MatchMinute;
+import org.example.engine.MatchPeriod;
 import org.example.engine.random.RandomProvider;
-import org.example.engine.random.RouletteWheel;
-import org.example.engine.random.SkillFactor;
-import org.example.model.Player;
-import org.example.model.Team;
-import org.example.persistence.ConnectionProvider;
-import org.example.persistence.DatabaseConfig;
-import org.example.persistence.LeagueLoader;
 
-import java.util.EnumMap;
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
-import java.util.Map;
 
 public class Main {
 
-    private static final double GOAL_BASE = 15;
-    private static final double SAVE_BASE = 35;
-    private static final double MISS_BASE = 50;
-
     public static void main(String[] args) {
-        ConnectionProvider connectionProvider = new ConnectionProvider(DatabaseConfig.load());
-        List<Team> teams = new LeagueLoader(connectionProvider).loadTeams();
-
-        RandomProvider random = new RandomProvider(42);
-
-        Player messi = findPlayer(teams, "Messi");
-        Player nicolita = findPlayer(teams, "Nicoliță");
-        Player buffon = findPlayer(teams, "Buffon");
-
-        testShot(messi, buffon, random);
-        testShot(nicolita, buffon, random);
-        testSameSeed();
-        testValidation();
+        testMinuteFormat();
+        testFakeMatch();
     }
 
-    private static RouletteWheel<ShotOutcome> shotWheel(Player shooter, Player keeper) {
-        double skill = SkillFactor.of(shooter.getAttributes().shooting(), keeper.getAttributes().reflexes());
-        return new RouletteWheel<ShotOutcome>()
-                .addFavourable(ShotOutcome.GOAL, GOAL_BASE, skill)
-                .addOption(ShotOutcome.SAVE, SAVE_BASE)
-                .addUnfavourable(ShotOutcome.MISS, MISS_BASE, skill);
-    }
+    private static void testMinuteFormat() {
+        System.out.println("=== Minute format ===");
+        System.out.println(MatchMinute.of(1) + "  " + MatchMinute.of(34) + "  "
+                + new MatchMinute(45, 3) + "  " + MatchMinute.of(48) + "  " + new MatchMinute(90, 4));
 
-    private static void testShot(Player shooter, Player keeper, RandomProvider random) {
-        System.out.println();
-        System.out.println("=== " + shooter.getFullName() + " (SHOOTING " + shooter.getAttributes().shooting()
-                + ") shoots at " + keeper.getFullName() + " (REFLEXES " + keeper.getAttributes().reflexes() + ") ===");
-
-        RouletteWheel<ShotOutcome> wheel = shotWheel(shooter, keeper);
-        System.out.print(wheel.describe());
-
-        double roll = random.nextDouble();
-        System.out.printf("One spin: roll %.3f -> %s%n", roll, wheel.pick(roll));
-
-        int shots = 100_000;
-        Map<ShotOutcome, Integer> counts = new EnumMap<>(ShotOutcome.class);
-        for (int i = 0; i < shots; i++) {
-            counts.merge(wheel.spin(random), 1, Integer::sum);
-        }
-        System.out.println("After " + shots + " shots:");
-        for (ShotOutcome outcome : ShotOutcome.values()) {
-            double actual = 100.0 * counts.getOrDefault(outcome, 0) / shots;
-            double expected = 100.0 * wheel.probabilityOf(outcome);
-            System.out.printf("  %-6s %5.1f%%  (expected %5.1f%%)%n", outcome, actual, expected);
-        }
-    }
-
-    private static void testSameSeed() {
-        System.out.println();
-        System.out.println("=== Same seed, same season ===");
-        RandomProvider first = new RandomProvider(7);
-        RandomProvider second = new RandomProvider(7);
-        boolean same = true;
-        for (int i = 0; i < 1000; i++) {
-            if (first.nextDouble() != second.nextDouble()) {
-                same = false;
-            }
-        }
-        System.out.println("1000 numbers identical: " + same);
-    }
-
-    private static void testValidation() {
-        System.out.println();
-        System.out.println("=== Validation (every line should be an expected error) ===");
+        List<MatchMinute> minutes = new ArrayList<>(List.of(
+                MatchMinute.of(46), new MatchMinute(45, 3), MatchMinute.of(45),
+                new MatchMinute(90, 1), MatchMinute.of(90)));
+        Collections.sort(minutes);
+        System.out.println("Sorted: " + minutes + "  (expected [45', 45+3', 46', 90', 90+1'])");
 
         try {
-            new RouletteWheel<String>().addOption("GOAL", -5);
-            System.out.println("FAILED: negative weight was accepted");
+            new MatchMinute(60, 2);
+            System.out.println("FAILED: 60+2' was accepted");
         } catch (IllegalArgumentException e) {
             System.out.println("Expected error: " + e.getMessage());
         }
-
-        try {
-            new RouletteWheel<String>().addOption("GOAL", 0).pick(0.5);
-            System.out.println("FAILED: empty wheel was spun");
-        } catch (IllegalStateException e) {
-            System.out.println("Expected error: " + e.getMessage());
-        }
     }
 
-    private static Player findPlayer(List<Team> teams, String lastName) {
-        return teams.stream()
-                .flatMap(team -> team.getSquad().stream())
-                .filter(player -> player.getLastName().equals(lastName))
-                .findFirst()
-                .orElseThrow(() -> new IllegalArgumentException("Player not found: " + lastName));
+    private static void testFakeMatch() {
+        System.out.println();
+        System.out.println("=== Fake match (random events, no teams yet) ===");
+        RandomProvider random = new RandomProvider(42);
+        MatchClock clock = new MatchClock();
+
+        System.out.println("1' KICK-OFF");
+        playPeriod(clock, random);
+        System.out.println(clock.getMinute() + " HALF-TIME");
+
+        clock.startSecondHalf();
+        System.out.println(clock.getMinute() + " SECOND HALF STARTS");
+        playPeriod(clock, random);
+        System.out.println(clock.getMinute() + " FULL-TIME");
+    }
+
+    private static void playPeriod(MatchClock clock, RandomProvider random) {
+        int phases = 0;
+        while (!clock.isPeriodOver()) {
+            clock.advance(random.nextInt(10, 90));
+            phases++;
+
+            if (random.chance(0.03)) {
+                clock.recordGoal();
+                System.out.println(clock.getMinute() + " GOAL");
+            }
+            if (random.chance(0.04)) {
+                clock.recordCard();
+                System.out.println(clock.getMinute() + " YELLOW CARD");
+            }
+            if (clock.getPeriod() == MatchPeriod.SECOND_HALF && random.chance(0.05)) {
+                clock.recordSubstitution();
+                System.out.println(clock.getMinute() + " SUBSTITUTION");
+            }
+            if (clock.isRegulationTimeOver() && !clock.isStoppageTimeAnnounced()) {
+                int added = clock.announceStoppageTime(random);
+                System.out.println("    +" + added + " minutes of stoppage time");
+            }
+        }
+        System.out.println("    (" + phases + " phases in the " + clock.getPeriod().toString().toLowerCase() + ")");
     }
 }
