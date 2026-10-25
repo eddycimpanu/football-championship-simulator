@@ -33,7 +33,7 @@ public class CornerState extends RestartState {
 
         if (choice == Choice.CROSS) {
             return new StateResult(new CrossState(
-                    PlayerPicker.pick(attackers.getOnPitch(), PlayerAction.CROSS, context.random())), seconds);
+                    PlayerPicker.pick(attackers, PlayerAction.CROSS, context.random())), seconds);
         }
         return new StateResult(new AttackState(), seconds);
     }

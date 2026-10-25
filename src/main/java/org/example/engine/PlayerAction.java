@@ -2,7 +2,7 @@ package org.example.engine;
 
 import org.example.model.Attribute;
 import org.example.model.FieldRole;
-import org.example.model.Player;
+import org.example.model.PlayerAttributes;
 
 public enum PlayerAction {
     //          attribute that matters     GK  DEF  MID  FWD
@@ -30,14 +30,9 @@ public enum PlayerAction {
         this.forward = forward;
     }
 
-    public double weightFor(Player player) {
-        double roleWeight = switch (player.getFieldRole()) {
-            case GOALKEEPER -> goalkeeper;
-            case DEFENDER -> defender;
-            case MIDFIELDER -> midfielder;
-            case FORWARD -> forward;
-        };
-        return roleWeight * player.getAttributes().get(attribute);
+    // Role weight x the attribute that matters for this action
+    public double weightFor(FieldRole fieldRole, PlayerAttributes attributes) {
+        return roleWeight(fieldRole) * attributes.get(attribute);
     }
 
     public double roleWeight(FieldRole fieldRole) {

@@ -17,7 +17,7 @@ public class PhaseRunner {
             MatchTeam teamOnTheBall = context.attackingTeam();
             StateResult result = current.execute(context);
 
-            context.clock().advance(result.seconds());
+            context.passTime(result.seconds());
             context.addPossessionTime(teamOnTheBall, result.seconds());
             totalSeconds += result.seconds();
 

@@ -6,6 +6,7 @@ import org.example.engine.event.MatchEvent;
 import org.example.engine.event.MatchEventLog;
 import org.example.engine.random.RandomProvider;
 import org.example.model.Player;
+import org.example.model.PlayerAttributes;
 
 public class MatchContext {
 
@@ -25,6 +26,19 @@ public class MatchContext {
         this.away = away;
         this.random = random;
         this.inPossession = home;
+    }
+
+    // ----- Time: the clock moves on and the players on the pitch get tired -----
+
+    public void passTime(int seconds) {
+        clock.advance(seconds);
+        home.drainEnergy(seconds);
+        away.drainEnergy(seconds);
+    }
+
+    // The attributes of a player right now, fatigue included.
+    public PlayerAttributes attributes(Player player) {
+        return home.has(player) ? home.attributesOf(player) : away.attributesOf(player);
     }
 
     // ----- Possession -----

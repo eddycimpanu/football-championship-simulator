@@ -34,14 +34,14 @@ public class ShootState extends PhaseState {
         int seconds = duration(context, EngineConfig.SHOT_MIN, EngineConfig.SHOT_MAX);
 
         // SHOOTING (HEADING for a header) vs the keeper's REFLEXES decides goal against save
-        int finishing = shotType == ShotType.HEADER ? shooter.getAttributes().heading() : shooter.getAttributes().shooting();
-        double vsKeeper = SkillFactor.of(finishing, keeper.getAttributes().reflexes()) * context.homeFactor();
+        int finishing = shotType == ShotType.HEADER ? context.attributes(shooter).heading() : context.attributes(shooter).shooting();
+        double vsKeeper = SkillFactor.of(finishing, context.attributes(keeper).reflexes()) * context.homeFactor();
 
         // In open play the nearest defender puts pressure on the shot
         double vsDefender = 1;
         if (shotType.hasDefenderPressure()) {
-            Player defender = PlayerPicker.pick(defenders.getOutfieldPlayers(), PlayerAction.DEFEND, context.random());
-            vsDefender = SkillFactor.of(finishing, defender.getAttributes().defending());
+            Player defender = PlayerPicker.pick(defenders, PlayerAction.DEFEND, context.random());
+            vsDefender = SkillFactor.of(finishing, context.attributes(defender).defending());
         }
 
         ShotOutcome outcome = new RouletteWheel<ShotOutcome>()
@@ -71,7 +71,7 @@ public class ShootState extends PhaseState {
 
     // What happens to the rebound? The keeper's HANDLING decides whether he holds the ball.
     private StateResult afterSave(MatchContext context, Player keeper, int seconds) {
-        double handling = SkillFactor.of(keeper.getAttributes().handling(), EngineConfig.REFERENCE_ATTRIBUTE);
+        double handling = SkillFactor.of(context.attributes(keeper).handling(), EngineConfig.REFERENCE_ATTRIBUTE);
 
         SaveOutcome outcome = new RouletteWheel<SaveOutcome>()
                 .addUnfavourable(SaveOutcome.REBOUND_TO_ATTACKER, EngineConfig.SAVE_REBOUND_TO_ATTACKER, handling)

@@ -1,10 +1,10 @@
 package org.example;
 
-import org.example.console.MatchReportPrinter;
+import org.example.config.EngineConfig;
 import org.example.engine.Match;
 import org.example.engine.MatchResult;
-import org.example.engine.event.EventDisplayMode;
 import org.example.engine.random.RandomProvider;
+import org.example.model.Player;
 import org.example.model.Referee;
 import org.example.model.Team;
 import org.example.persistence.ConnectionProvider;
@@ -15,39 +15,53 @@ import java.util.List;
 
 public class Main {
 
-    // ----- Change these to play another match -----
-    private static final String HOME_TEAM = "Barcelona";
-    private static final String AWAY_TEAM = "Real Madrid";
-    private static final EventDisplayMode DISPLAY_MODE = EventDisplayMode.ALL;   // ALL or KEY
-    private static final Long SEED = null;   // null = a new match every run; a number = replay that match
+    // ----- Fitness test: one team plays several rounds in a row -----
+    private static final String TEAM = "Barcelona";
+    private static final int ROUNDS = 8;
+    private static final long SEED = 17;
 
     public static void main(String[] args) {
         LeagueLoader loader = new LeagueLoader(new ConnectionProvider(DatabaseConfig.load()));
         List<Team> teams = loader.loadTeams();
         List<Referee> referees = loader.loadReferees();
+        RandomProvider random = new RandomProvider(SEED);
 
-        RandomProvider random = SEED == null ? RandomProvider.withRandomSeed() : new RandomProvider(SEED);
-        Referee referee = random.pickOne(referees);
+        Team team = findTeam(teams, TEAM);
 
-        Match match = new Match(findTeam(teams, HOME_TEAM), findTeam(teams, AWAY_TEAM), referee, random);
-        MatchResult result = match.simulate();
+        for (int round = 1; round <= ROUNDS; round++) {
+            Team opponent;
+            do {
+                opponent = random.pickOne(teams);
+            } while (opponent == team);
 
-        MatchReportPrinter printer = new MatchReportPrinter();
-        printer.printLineups(result);
-        printer.printEvents(result, DISPLAY_MODE);
-        printer.printStats(result);
+            Match match = new Match(team, opponent, random.pickOne(referees), random);
+            MatchResult result = match.simulate();
 
+            System.out.println("=== Round " + round + ": " + result + " ===");
+            printLineupWithCondition(result.getHomeLineup());
+
+            // Between two rounds every player in the league recovers part of his condition
+            for (Team any : teams) {
+                for (Player player : any.getSquad()) {
+                    player.recoverCondition(EngineConfig.CONDITION_RECOVERY_PER_ROUND);
+                }
+            }
+        }
+    }
+
+    // Condition shown is after the match: how tired each starter is now
+    private static void printLineupWithCondition(List<Player> lineup) {
+        for (Player player : lineup) {
+            System.out.printf("  %-4s %-26s %3d OVR   condition after match %3d%n",
+                    player.getPosition(), player.getFullName(), player.getOverall(), player.getCondition());
+        }
         System.out.println();
-        System.out.println("Points: " + result.getHomeTeam().getName() + " " + result.pointsFor(result.getHomeTeam())
-                + ", " + result.getAwayTeam().getName() + " " + result.pointsFor(result.getAwayTeam()));
-        System.out.println("Seed: " + random.getSeed() + "  (set SEED to this number to replay the same match)");
     }
 
     private static Team findTeam(List<Team> teams, String name) {
         return teams.stream()
                 .filter(team -> team.getName().equals(name))
                 .findFirst()
-                .orElseThrow(() -> new IllegalArgumentException("Team not found: " + name
-                        + ". Check the spelling, it must match the name in the database."));
+                .orElseThrow(() -> new IllegalArgumentException("Team not found: " + name));
     }
 }

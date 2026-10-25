@@ -25,12 +25,12 @@ public class FreeKickState extends RestartState {
     public StateResult execute(MatchContext context) {
         MatchTeam attackers = context.attackingTeam();
         int seconds = duration(context, EngineConfig.FREE_KICK_MIN, EngineConfig.FREE_KICK_MAX);
-        Player taker = PlayerPicker.best(attackers.getOutfieldPlayers(), Attribute.SHOOTING);
+        Player taker = PlayerPicker.best(attackers, Attribute.SHOOTING);
 
         RouletteWheel<Choice> wheel = new RouletteWheel<>();
         if (dangerous) {
             // A great free-kick taker shoots more; good headers in the box make a cross worth it
-            double takerSkill = SkillFactor.of(taker.getAttributes().shooting(), EngineConfig.REFERENCE_ATTRIBUTE);
+            double takerSkill = SkillFactor.of(context.attributes(taker).shooting(), EngineConfig.REFERENCE_ATTRIBUTE);
             double aerialSkill = SkillFactor.of(attackers.averageOfTop(Attribute.HEADING, 3), EngineConfig.REFERENCE_ATTRIBUTE);
             wheel.addFavourable(Choice.SHOOT, EngineConfig.FREE_KICK_SHOOT, takerSkill)
                     .addFavourable(Choice.CROSS, EngineConfig.FREE_KICK_CROSS, aerialSkill)
@@ -43,7 +43,7 @@ public class FreeKickState extends RestartState {
         return switch (wheel.spin(context.random())) {
             case SHOOT -> new StateResult(new ShootState(ShotType.FREE_KICK, taker, null), seconds);
             case CROSS -> {
-                Player crosser = PlayerPicker.pick(attackers.getOnPitch(), PlayerAction.CROSS, context.random());
+                Player crosser = PlayerPicker.pick(attackers, PlayerAction.CROSS, context.random());
                 yield new StateResult(new CrossState(crosser), seconds);
             }
             case SHORT_PASS -> new StateResult(new AttackState(), seconds);

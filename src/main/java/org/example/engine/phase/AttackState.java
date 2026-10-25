@@ -45,9 +45,9 @@ public class AttackState extends PhaseState {
 
         return switch (outcome) {
             case SHOT_TAKEN -> {
-                Player shooter = PlayerPicker.pick(attackers.getOnPitch(), PlayerAction.SHOOT, context.random());
+                Player shooter = PlayerPicker.pick(attackers, PlayerAction.SHOOT, context.random());
                 Player assist = context.random().chance(EngineConfig.ASSIST_CHANCE)
-                        ? PlayerPicker.pick(attackers.getOnPitch(), PlayerAction.ASSIST, shooter, context.random())
+                        ? PlayerPicker.pick(attackers, PlayerAction.ASSIST, shooter, context.random())
                         : null;
                 yield new StateResult(new ShootState(ShotType.OPEN_PLAY, shooter, assist), seconds);
             }
@@ -56,12 +56,12 @@ public class AttackState extends PhaseState {
                 yield new StateResult(new DispossessionState(), seconds);
             }
             case FOUL -> {
-                Player fouler = PlayerPicker.pick(defenders.getOnPitch(), PlayerAction.COMMIT_FOUL, context.random());
-                Player fouled = PlayerPicker.pick(attackers.getOnPitch(), PlayerAction.WIN_FOUL, context.random());
+                Player fouler = PlayerPicker.pick(defenders, PlayerAction.COMMIT_FOUL, context.random());
+                Player fouled = PlayerPicker.pick(attackers, PlayerAction.WIN_FOUL, context.random());
                 yield new StateResult(new FoulState(fouler, fouled, false), seconds);
             }
             case OFFSIDE -> {
-                Player runner = PlayerPicker.pick(attackers.getOnPitch(), PlayerAction.RUN_IN_BEHIND, context.random());
+                Player runner = PlayerPicker.pick(attackers, PlayerAction.RUN_IN_BEHIND, context.random());
                 context.addEvent(new OffsideEvent(context.minute(), attackers.getTeam(), runner));
                 context.switchPossession();
                 yield new StateResult(new FreeKickState(false), seconds);
@@ -78,7 +78,7 @@ public class AttackState extends PhaseState {
                 yield new StateResult(new GoalKickState(), seconds);
             }
             case OWN_GOAL -> {
-                Player unlucky = PlayerPicker.pick(defenders.getOnPitch(), PlayerAction.CLEAR_INTO_OWN_NET, context.random());
+                Player unlucky = PlayerPicker.pick(defenders, PlayerAction.CLEAR_INTO_OWN_NET, context.random());
                 context.recordGoal(attackers, unlucky, null, GoalEvent.GoalType.OWN_GOAL);
                 context.switchPossession();
                 yield new StateResult(new KickoffState(), seconds + EngineConfig.GOAL_CELEBRATION);

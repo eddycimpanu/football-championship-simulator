@@ -53,4 +53,19 @@ public record PlayerAttributes(
         };
     }
 
+    // A tired player: every skill is multiplied by the factor (stamina and aggression stay the same).
+    public PlayerAttributes withFatigue(double factor) {
+        if (factor >= 1) {
+            return this;
+        }
+        return new PlayerAttributes(
+                scale(pace, factor), scale(shooting, factor), scale(passing, factor),
+                scale(dribbling, factor), scale(defending, factor), scale(physical, factor),
+                scale(heading, factor), scale(reflexes, factor), scale(handling, factor),
+                stamina, aggression);
+    }
+
+    private static int scale(int value, double factor) {
+        return Math.max(MIN_VALUE, (int) Math.round(value * factor));
+    }
 }

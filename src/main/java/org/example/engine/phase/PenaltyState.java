@@ -10,7 +10,7 @@ public class PenaltyState extends PhaseState {
 
     @Override
     public StateResult execute(MatchContext context) {
-        Player taker = PlayerPicker.best(context.attackingTeam().getOutfieldPlayers(), Attribute.SHOOTING);
+        Player taker = PlayerPicker.best(context.attackingTeam(), Attribute.SHOOTING);
         return new StateResult(new ShootState(ShotType.PENALTY, taker, null),
                 duration(context, EngineConfig.PENALTY_MIN, EngineConfig.PENALTY_MAX));
     }

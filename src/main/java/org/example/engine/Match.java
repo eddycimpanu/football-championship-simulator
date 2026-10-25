@@ -1,5 +1,6 @@
 package org.example.engine;
 
+import org.example.config.EngineConfig;
 import org.example.engine.event.PeriodEvent;
 import org.example.engine.phase.KickoffState;
 import org.example.engine.phase.PhaseRunner;
@@ -51,12 +52,18 @@ public class Match {
         playHalf(context);
         context.addEvent(new PeriodEvent(context.minute(), PeriodEvent.Kind.HALF_TIME, context.score()));
 
-        // Second half: the other team kicks off
+        // Half-time: a short rest, then the other team kicks off
+        home.recoverEnergy(EngineConfig.HALF_TIME_RECOVERY);
+        away.recoverEnergy(EngineConfig.HALF_TIME_RECOVERY);
         context.clock().startSecondHalf();
         context.giveBallTo(context.opponentOf(firstKickoff));
         context.addEvent(new PeriodEvent(context.minute(), PeriodEvent.Kind.SECOND_HALF, context.score()));
         playHalf(context);
         context.addEvent(new PeriodEvent(context.minute(), PeriodEvent.Kind.FULL_TIME, context.score()));
+
+        // Everyone who played is now tired: their condition drops for the next rounds
+        home.applyConditionLoss();
+        away.applyConditionLoss();
 
         result = new MatchResult(context, referee);
         return result;

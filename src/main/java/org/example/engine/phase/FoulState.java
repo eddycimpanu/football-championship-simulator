@@ -26,7 +26,7 @@ public class FoulState extends PhaseState {
 
         // Inside or outside the box? Fouls during a cross happen in the box much more often.
         double insideChance = duringCross ? EngineConfig.PENALTY_CHANCE_FROM_CROSS : EngineConfig.PENALTY_CHANCE_OPEN_PLAY;
-        insideChance *= fouler.getAttributes().aggression() / EngineConfig.REFERENCE_ATTRIBUTE;
+        insideChance *= context.attributes(fouler).aggression() / EngineConfig.REFERENCE_ATTRIBUTE;
 
         // The fouled team keeps the ball
         if (context.random().chance(Math.min(1, insideChance))) {

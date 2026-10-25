@@ -1,91 +1,112 @@
 package org.example.engine;
 
+import org.example.config.EngineConfig;
 import org.example.model.Attribute;
-import org.example.model.DetailedPosition;
 import org.example.model.FieldRole;
+import org.example.model.Lineup;
 import org.example.model.Player;
+import org.example.model.PlayerAttributes;
 import org.example.model.Team;
 
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.function.ToIntFunction;
 
 public class MatchTeam {
 
-    private static final int BENCH_SIZE = 9;
-    private static final int SAME_ROLE_PENALTY = 2;
-    private static final int OTHER_ROLE_PENALTY = 10;
-
     private final Team team;
     private final boolean home;
-    private final List<Player> startingEleven;
+    private final Lineup lineup;
     private final List<Player> onPitch;
     private final List<Player> bench;
 
-    private MatchTeam(Team team, boolean home, List<Player> startingEleven, List<Player> bench) {
+    private final Map<Player, Double> energy = new HashMap<>();
+    private final Map<Player, Double> energyUsed = new HashMap<>();
+
+    private MatchTeam(Team team, boolean home, Lineup lineup) {
         this.team = team;
         this.home = home;
-        this.startingEleven = List.copyOf(startingEleven);
-        this.onPitch = new ArrayList<>(startingEleven);
-        this.bench = new ArrayList<>(bench);
+        this.lineup = lineup;
+        this.onPitch = new ArrayList<>(lineup.startingEleven());
+        this.bench = new ArrayList<>(lineup.bench());
+        for (Player player : onPitch) {
+            energy.put(player, (double) player.getCondition());
+        }
+        for (Player player : bench) {
+            energy.put(player, (double) player.getCondition());
+        }
     }
 
-    // Temporary line-up: the best available player for every slot of the coach's formation.
-    // Stage 17 replaces this with the coach's own choice (fitness, rotation).
+    // The coach picks the starting eleven and the bench.
     public static MatchTeam prepare(Team team, boolean home) {
-        List<Player> available = new ArrayList<>(team.getAvailablePlayers());
-        List<Player> eleven = new ArrayList<>();
-
-        for (DetailedPosition slot : team.getCoach().getPreferredFormation().getSlots()) {
-            Player chosen = available.stream()
-                    .filter(player -> (slot == DetailedPosition.GK) == (player.getFieldRole() == FieldRole.GOALKEEPER))
-                    .max(Comparator.comparingInt(player -> slotScore(player, slot)))
-                    .orElseThrow(() -> new IllegalStateException(team.getName() + " cannot fill " + slot));
-            eleven.add(chosen);
-            available.remove(chosen);
-        }
-
-        available.sort(Comparator.comparingInt(Player::getOverall).reversed());
-        List<Player> bench = new ArrayList<>();
-        available.stream().filter(p -> p.getFieldRole() == FieldRole.GOALKEEPER).findFirst().ifPresent(bench::add);
-        for (Player player : available) {
-            if (bench.size() >= BENCH_SIZE) {
-                break;
-            }
-            if (!bench.contains(player)) {
-                bench.add(player);
-            }
-        }
-        return new MatchTeam(team, home, eleven, bench);
+        return new MatchTeam(team, home, team.getCoach().selectStartingEleven(team));
     }
 
-    private static int slotScore(Player player, DetailedPosition slot) {
-        int penalty = player.getPosition() == slot ? 0
-                : player.getFieldRole() == slot.getFieldRole() ? SAME_ROLE_PENALTY : OTHER_ROLE_PENALTY;
-        return player.getOverallAs(slot) - penalty;
+    // ----- Energy and fatigue -----
+
+    // Energy drops every minute for the players on the pitch; high STAMINA drops slower.
+    public void drainEnergy(int seconds) {
+        for (Player player : onPitch) {
+            double stamina = player.getAttributes().stamina();
+            double perMinute = EngineConfig.ENERGY_DROP_PER_MINUTE * (2 - stamina / EngineConfig.REFERENCE_ATTRIBUTE);
+            if (player.getFieldRole() == FieldRole.GOALKEEPER) {
+                perMinute *= EngineConfig.GOALKEEPER_ENERGY_FACTOR;
+            }
+            double drop = Math.max(0, perMinute) * seconds / 60.0;
+            energy.merge(player, -drop, (current, change) -> Math.max(0, current + change));
+            energyUsed.merge(player, drop, Double::sum);
+        }
+    }
+
+    public void recoverEnergy(double amount) {
+        for (Player player : onPitch) {
+            energy.merge(player, amount, (current, change) -> Math.min(Player.MAX_CONDITION, current + change));
+        }
+    }
+
+    public double getEnergy(Player player) {
+        return energy.getOrDefault(player, (double) player.getCondition());
+    }
+
+    // The attributes a player really has right now: a tired player is a bit weaker.
+    public PlayerAttributes attributesOf(Player player) {
+        double missingEnergy = 1 - getEnergy(player) / Player.MAX_CONDITION;
+        return player.getAttributes().withFatigue(1 - EngineConfig.FATIGUE_EFFECT * missingEnergy);
+    }
+
+    // After the final whistle: everyone who played loses condition for the energy he used.
+    public void applyConditionLoss() {
+        energyUsed.forEach((player, used) ->
+                player.reduceCondition((int) Math.round(used * EngineConfig.CONDITION_COST_PER_ENERGY)));
     }
 
     // ----- Ratings, always from the players on the pitch right now -----
 
     public double getAttackRating() {
-        return average(playersIn(FieldRole.MIDFIELDER, FieldRole.FORWARD),
-                p -> (p.getAttributes().passing() + p.getAttributes().dribbling() + p.getAttributes().pace()) / 3);
+        return average(playersIn(FieldRole.MIDFIELDER, FieldRole.FORWARD), p -> {
+            PlayerAttributes a = attributesOf(p);
+            return (a.passing() + a.dribbling() + a.pace()) / 3;
+        });
     }
 
     public double getDefenceRating() {
-        return average(playersIn(FieldRole.DEFENDER, FieldRole.MIDFIELDER),
-                p -> (p.getAttributes().defending() + p.getAttributes().physical() + p.getAttributes().pace()) / 3);
+        return average(playersIn(FieldRole.DEFENDER, FieldRole.MIDFIELDER), p -> {
+            PlayerAttributes a = attributesOf(p);
+            return (a.defending() + a.physical() + a.pace()) / 3;
+        });
     }
 
     public double averageOf(Attribute attribute, FieldRole... roles) {
-        return average(playersIn(roles), p -> p.getAttributes().get(attribute));
+        return average(playersIn(roles), p -> attributesOf(p).get(attribute));
     }
 
     public double averageOfTop(Attribute attribute, int count) {
         return getOutfieldPlayers().stream()
-                .mapToInt(p -> p.getAttributes().get(attribute))
+                .mapToInt(p -> attributesOf(p).get(attribute))
                 .boxed()
                 .sorted(Comparator.reverseOrder())
                 .limit(count)
@@ -105,6 +126,10 @@ public class MatchTeam {
 
     // ----- Players -----
 
+    public boolean has(Player player) {
+        return energy.containsKey(player);
+    }
+
     public Player getGoalkeeper() {
         return onPitch.stream()
                 .filter(p -> p.getFieldRole() == FieldRole.GOALKEEPER)
@@ -117,8 +142,9 @@ public class MatchTeam {
     }
 
     public List<Player> getOnPitch() { return Collections.unmodifiableList(onPitch); }
-    public List<Player> getStartingEleven() { return startingEleven; }
+    public List<Player> getStartingEleven() { return lineup.startingEleven(); }
     public List<Player> getBench() { return Collections.unmodifiableList(bench); }
+    public Lineup getLineup() { return lineup; }
     public Team getTeam() { return team; }
     public String getName() { return team.getName(); }
     public boolean isHome() { return home; }

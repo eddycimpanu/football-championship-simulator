@@ -28,13 +28,13 @@ public class CrossState extends PhaseState {
         MatchTeam defenders = context.defendingTeam();
         int seconds = duration(context, EngineConfig.CROSS_MIN, EngineConfig.CROSS_MAX);
 
-        Player target = PlayerPicker.pick(attackers.getOnPitch(), PlayerAction.HEADER, crosser, context.random());
+        Player target = PlayerPicker.pick(attackers, PlayerAction.HEADER, crosser, context.random());
 
         // Crosser's PASSING and target's HEADING vs defenders' HEADING, PHYSICAL and the keeper's HANDLING
-        double attack = (crosser.getAttributes().passing() + target.getAttributes().heading()) / 2.0;
+        double attack = (context.attributes(crosser).passing() + context.attributes(target).heading()) / 2.0;
         double defence = (defenders.averageOf(Attribute.HEADING, FieldRole.DEFENDER)
                 + defenders.averageOf(Attribute.PHYSICAL, FieldRole.DEFENDER)
-                + defenders.getGoalkeeper().getAttributes().handling()) / 3.0;
+                + context.attributes(defenders.getGoalkeeper()).handling()) / 3.0;
         double skill = SkillFactor.of(attack, defence) * context.homeFactor();
         double aggression = defenders.averageOf(Attribute.AGGRESSION, FieldRole.DEFENDER) / EngineConfig.REFERENCE_ATTRIBUTE;
 
@@ -52,11 +52,11 @@ public class CrossState extends PhaseState {
                 yield new StateResult(new DispossessionState(), seconds);
             }
             case FOUL -> {
-                Player fouler = PlayerPicker.pick(defenders.getOnPitch(), PlayerAction.COMMIT_FOUL, context.random());
+                Player fouler = PlayerPicker.pick(defenders, PlayerAction.COMMIT_FOUL, context.random());
                 yield new StateResult(new FoulState(fouler, target, true), seconds);
             }
             case OWN_GOAL -> {
-                Player unlucky = PlayerPicker.pick(defenders.getOnPitch(), PlayerAction.CLEAR_INTO_OWN_NET, context.random());
+                Player unlucky = PlayerPicker.pick(defenders, PlayerAction.CLEAR_INTO_OWN_NET, context.random());
                 context.recordGoal(attackers, unlucky, null, GoalEvent.GoalType.OWN_GOAL);
                 context.switchPossession();
                 yield new StateResult(new KickoffState(), seconds + EngineConfig.GOAL_CELEBRATION);

@@ -19,6 +19,16 @@ public final class EngineConfig {
     public static final double HOME_ADVANTAGE = 1.05;         // good results for the home team x 1.05
     public static final double REFERENCE_ATTRIBUTE = 75;      // an "average" attribute in this league
 
+    // ----- Fitness -----
+    public static final double FITNESS_WEIGHT_IN_SELECTION = 0.3;  // a player at 70% condition counts as 91% as good
+    public static final int MIN_CONDITION_TO_START = 50;          // below this he starts only if nobody else can
+    public static final double ENERGY_DROP_PER_MINUTE = 0.30;     // for a player with average STAMINA
+    public static final double GOALKEEPER_ENERGY_FACTOR = 0.3;    // a goalkeeper runs much less
+    public static final double FATIGUE_EFFECT = 0.15;             // attributes x (1 - 0.15 x missing energy)
+    public static final double HALF_TIME_RECOVERY = 4;            // energy back during the break
+    public static final double CONDITION_COST_PER_ENERGY = 0.8;   // condition lost after the match per energy used
+    public static final int CONDITION_RECOVERY_PER_ROUND = 20;    // condition back between two rounds
+
     // ----- Durations in seconds (min, max) -----
     public static final int KICKOFF_MIN = 5, KICKOFF_MAX = 10;
     public static final int GOAL_KICK_MIN = 10, GOAL_KICK_MAX = 25;
