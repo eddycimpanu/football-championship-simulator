@@ -11,6 +11,8 @@ import java.util.Optional;
 // Plays a season round by round and saves everything as it goes.
 public class SeasonService {
 
+    public static final String DEFAULT_SEASON_NAME = "All-Star League 2026/27";
+
     private final Season season;
     private final SeasonStore store;
 

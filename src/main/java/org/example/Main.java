@@ -17,7 +17,6 @@ import java.util.function.Supplier;
 
 public class Main {
 
-    private static final String SEASON_NAME = "All-Star League 2026/27";
     private static final Long SEED = null;   // null = a random new season; a number = replay that season
 
     public static void main(String[] args) {
@@ -28,7 +27,7 @@ public class Main {
         // A new season always starts with fresh players, loaded again from the database
         Supplier<SeasonService> newSeason = () -> {
             long seed = SEED == null ? System.nanoTime() : SEED;
-            return SeasonService.startNewSeason(SEASON_NAME, loader.loadTeams(), loader.loadReferees(), seed, store);
+            return SeasonService.startNewSeason(SeasonService.DEFAULT_SEASON_NAME, loader.loadTeams(), loader.loadReferees(), seed, store);
         };
 
         // Continue the last saved season; only the very first run creates one
