@@ -10,6 +10,7 @@ import org.example.persistence.JdbcSeasonStore;
 import org.example.persistence.LeagueLoader;
 import org.example.persistence.MatchReportDao;
 import org.example.persistence.PlayerStatsDao;
+import org.example.persistence.SeasonReportDao;
 
 import java.util.Scanner;
 import java.util.function.Supplier;
@@ -38,7 +39,7 @@ public class Main {
                 : service.getSeason().getCurrentRoundNumber()));
 
         ConsoleMenu menu = new ConsoleMenu(service, newSeason, new PlayerStatsDao(connectionProvider),
-                new MatchReportDao(connectionProvider), new ConsoleInput(new Scanner(System.in)));
+                new MatchReportDao(connectionProvider), new SeasonReportDao(connectionProvider), new ConsoleInput(new Scanner(System.in)));
         menu.run();
     }
 }

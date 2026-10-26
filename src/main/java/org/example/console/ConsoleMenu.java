@@ -10,6 +10,7 @@ import org.example.model.Player;
 import org.example.model.Team;
 import org.example.persistence.MatchReportDao;
 import org.example.persistence.PlayerStatsDao;
+import org.example.persistence.SeasonReportDao;
 
 import java.text.Normalizer;
 import java.util.Comparator;
@@ -29,22 +30,24 @@ public class ConsoleMenu {
     private final ConsoleInput input;
     private final LeagueTablePrinter tablePrinter = new LeagueTablePrinter();
     private final SavedMatchPrinter matchPrinter;
+    private final SeasonReportPrinter reportPrinter;
 
     // newSeason creates and saves a fresh season (with fresh players) when the user asks for one
     public ConsoleMenu(SeasonService service, Supplier<SeasonService> newSeason, PlayerStatsDao playerStatsDao,
-                       MatchReportDao matchReportDao, ConsoleInput input) {
+                       MatchReportDao matchReportDao, SeasonReportDao seasonReportDao, ConsoleInput input) {
         this.service = service;
         this.newSeason = newSeason;
         this.playerStatsDao = playerStatsDao;
         this.matchReportDao = matchReportDao;
         this.matchPrinter = new SavedMatchPrinter(matchReportDao);
+        this.reportPrinter = new SeasonReportPrinter(seasonReportDao, playerStatsDao);
         this.input = input;
     }
 
     public void run() {
         while (true) {
             printMenu();
-            int choice = input.readInt("Choose an option:", 0, 7);
+            int choice = input.readInt("Choose an option:", 0, 8);
             System.out.println();
             switch (choice) {
                 case 1 -> simulateNextRound();
@@ -53,7 +56,8 @@ public class ConsoleMenu {
                 case 4 -> showPlayerStatistics();
                 case 5 -> showTopScorers();
                 case 6 -> showTeamResults();
-                case 7 -> startNewSeason();
+                case 7 -> showSeasonReports();
+                case 8 -> startNewSeason();
                 case 0 -> {
                     System.out.println("Goodbye! The season is saved in the database (id " + season().getId() + ").");
                     return;
@@ -76,7 +80,8 @@ public class ConsoleMenu {
         System.out.println("4. Player statistics");
         System.out.println("5. Top scorers");
         System.out.println("6. Team results and fixtures");
-        System.out.println("7. Start a new season");
+        System.out.println("7. Season reports and awards");
+        System.out.println("8. Start a new season");
         System.out.println("0. Exit");
     }
 
@@ -84,7 +89,7 @@ public class ConsoleMenu {
 
     private void simulateNextRound() {
         if (season().isFinished()) {
-            System.out.println("The season is over. Choose 7 to start a new one.");
+            System.out.println("The season is over. Choose 7 for the reports or 8 to start a new season.");
             printChampion();
             return;
         }
@@ -97,7 +102,8 @@ public class ConsoleMenu {
         if (season().isFinished()) {
             System.out.println();
             System.out.println("That was the last round!");
-            printChampion();
+            input.waitForEnter();
+            reportPrinter.printSummary(season().getId(), season().getName(), service.getTable(), lastPlayedRound());
         }
         input.waitForEnter();
     }
@@ -296,7 +302,48 @@ public class ConsoleMenu {
         input.waitForEnter();
     }
 
-    // ----- 7. New season -----
+    // ----- 7. Season reports -----
+
+    private void showSeasonReports() {
+        int roundsPlayed = lastPlayedRound();
+        if (roundsPlayed == 0) {
+            System.out.println("No round has been played yet.");
+            return;
+        }
+        while (true) {
+            System.out.println();
+            System.out.println("=== Season reports after round " + roundsPlayed + " ===");
+            System.out.println("1. Most assists");
+            System.out.println("2. Discipline (cards)");
+            System.out.println("3. Goalkeepers");
+            System.out.println("4. Best average ratings");
+            System.out.println("5. Team of the season and MVP");
+            System.out.println("6. Team statistics");
+            System.out.println("7. Season records (biggest wins, hat-tricks)");
+            System.out.println("8. Season summary");
+            System.out.println("0. Back");
+            int choice = input.readInt("Choose a report:", 0, 8);
+            System.out.println();
+            int id = season().getId();
+            switch (choice) {
+                case 1 -> reportPrinter.printTopAssists(id);
+                case 2 -> reportPrinter.printDiscipline(id);
+                case 3 -> reportPrinter.printGoalkeepers(id, roundsPlayed);
+                case 4 -> reportPrinter.printBestRatings(id, roundsPlayed);
+                case 5 -> reportPrinter.printTeamOfTheSeason(id, roundsPlayed);
+                case 6 -> reportPrinter.printTeamStatistics(id);
+                case 7 -> reportPrinter.printRecords(id);
+                case 8 -> reportPrinter.printSummary(id, season().getName(), service.getTable(), roundsPlayed);
+                case 0 -> {
+                    return;
+                }
+                default -> throw new IllegalStateException("Unknown report " + choice);
+            }
+            input.waitForEnter();
+        }
+    }
+
+    // ----- 8. New season -----
 
     private void startNewSeason() {
         if (!season().isFinished()
