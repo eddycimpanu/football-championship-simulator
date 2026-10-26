@@ -15,7 +15,9 @@ A Java console application that simulates a full season of an all-star football 
 
 ## How the engine works
 
-Every decision is a roulette wheel. Each outcome gets a base weight, the players involved change it with a skill factor `(attacker / defender)^2`, and a random number between 0 and 1 picks the outcome. Over 4,000 simulated matches the engine averages 2.95 goals, 28 shots, 4.1 yellow cards and 0.18 red cards per match, close to real top-flight football.
+Every decision is a roulette wheel. Each outcome gets a base weight, the players involved change it with a skill factor `(attacker / defender)^2`, and a random number between 0 and 1 picks the outcome. Team against team, the attack rating (average OVR of the midfielders and forwards) meets the defence rating with an exponent of 9, so stronger sides create clearly more chances.
+
+The weights were calibrated with `CalibrationRunner`, which plays many seasons in memory. Over 30 seasons (11,400 matches) the engine averages 2.9 goals, 26 shots, 4 yellow cards and 0.16 red cards per match, 77% of goals have an assist, and the champion finishes on about 78 points against 21 for the last team, close to real top-flight football.
 
 ## OOP highlights
 

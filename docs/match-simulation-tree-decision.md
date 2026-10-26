@@ -80,11 +80,13 @@ skill factor = (attacker's attribute / defender's attribute) ^ 2
 
 Two equal players give a factor of 1, so nothing changes. A clearly better attacker gives a factor above 1: his good slices grow and his bad ones shrink. Squaring the ratio makes a real gap between two players count, without ever turning it into a certainty.
 
+When a whole team attacks a whole team, the ratings are much closer (every side in this league is between 85 and 91 OVR), so that duel uses a stronger exponent: `(attack rating / defence rating) ^ 9`. A side rated 90 against one rated 86 gets a factor of about 1.5.
+
 **3. Modifiers.** A few small factors tilt the wheel a little more:
 
 | Modifier | Effect |
 | --- | --- |
-| Team strength | The attacking team's rating against the defending team's rating |
+| Team strength | Attack rating (average OVR of the midfielders and forwards on the pitch) against defence rating (average OVR of the defenders and midfielders) |
 | Home advantage | Good results for the home team x 1.05 |
 | Fatigue | Attributes drop slowly during the match; players with high STAMINA drop less |
 | Red card | A team with fewer players gets x 0.90 per missing player |
@@ -124,13 +126,13 @@ The engine draws **0.12**. It lands in Messi's goal slice, so Messi scores; for 
 
 | Arrow | Grows with |
 | --- | --- |
-| Shot taken | PASSING, DRIBBLING and PACE of the attacking players |
-| Defender wins ball | DEFENDING, PHYSICAL and PACE of the defending players |
+| Shot taken | Attack rating: average OVR of the attacking midfielders and forwards |
+| Defender wins ball | Defence rating: average OVR of the defending defenders and midfielders |
 | Foul | AGGRESSION of the defenders and DRIBBLING of the attacker (dribblers get fouled) |
-| Offside | PACE of the forwards and DEFENDING of the back line |
+| Offside | Fixed weight; the forward caught offside is picked by PACE |
 | Out for corner | Attacking pressure: a beaten defender clears behind |
-| Out for throw-in, out for goal kick | Almost fixed; slightly lower for teams with good PASSING |
-| Own goal | Very small; slightly higher when the defenders' DEFENDING is low |
+| Out for throw-in, out for goal kick | Fixed weights |
+| Own goal | Very small, fixed |
 
 **How does the cross resolve?**
 
@@ -139,7 +141,7 @@ The engine draws **0.12**. It lands in Messi's goal slice, so Messi scores; for 
 | Header | Crosser's PASSING and the target's HEADING (and PHYSICAL) |
 | Defended | Defenders' HEADING and PHYSICAL, and the keeper's HANDLING (he comes out and claims it) |
 | Foul | Defenders' AGGRESSION and the attacker's PHYSICAL |
-| Own goal | Very small; slightly higher when the defenders' HEADING is low |
+| Own goal | Very small, fixed |
 
 **Inside box or outside box?** This depends on where the foul came from: a foul during a cross is often inside the box (around 40%), a foul during a normal attack rarely is (around 10%). A defender with high AGGRESSION raises the chance a little. Every foul is also followed by a **card check** (no card, yellow or red), based on the referee's strictness and the fouler's AGGRESSION.
 
@@ -159,7 +161,7 @@ Chance quality depends on how the shot came: penalty 1.6, normal attack 1.0, hea
 | --- | --- |
 | Rebound to attacker | Low HANDLING of the keeper and PACE of the attackers (first to the ball) |
 | Parried behind | Keeper's REFLEXES without the HANDLING to hold the ball |
-| Cleared to opponent | Keeper's HANDLING and the defenders' DEFENDING |
+| Cleared to opponent | Keeper's HANDLING |
 
 ## Who takes the action
 
@@ -168,6 +170,7 @@ The player who shoots, crosses or heads is also picked with a roulette wheel. Ev
 | Action | Role weights (GK / DEF / MID / FWD) | x attribute |
 | --- | --- | --- |
 | Shot | 0 / 1 / 3 / 5 | SHOOTING |
+| Assist | 0 / 1 / 4 / 3 | PASSING ^ 3 (playmakers get most assists) |
 | Cross | 0 / 2 / 3 / 3 | PASSING |
 | Header from a cross | 0 / 2 / 1 / 4 | HEADING |
 | Free kick and penalty | Always the best SHOOTING on the pitch | - |
@@ -178,12 +181,12 @@ This is why strikers score most goals, yet a centre-back with a great header sti
 
 | Attribute | Used in |
 | --- | --- |
-| PACE | Attack, offside, rebounds |
+| PACE | Offside, rebounds, team ratings (through OVR) |
 | SHOOTING | Choosing the shooter, free kicks, goals |
-| PASSING | Attack, crosses, short corners and free kicks |
-| DRIBBLING | Attack, fouls suffered |
-| DEFENDING | Winning the ball, offside line, pressure on shots, clearances |
-| PHYSICAL | Duels in attack and on crosses |
+| PASSING | Choosing the assist, crosses, short corners and free kicks |
+| DRIBBLING | Fouls suffered, team ratings (through OVR) |
+| DEFENDING | Pressure on shots, choosing the tackler, team ratings (through OVR) |
+| PHYSICAL | Duels on crosses, team ratings (through OVR) |
 | HEADING | Corners, crosses, headed goals |
 | REFLEXES | Saves |
 | HANDLING | Rebounds, claiming crosses |

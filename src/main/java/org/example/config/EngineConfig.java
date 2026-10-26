@@ -18,6 +18,8 @@ public final class EngineConfig {
     // ----- General -----
     public static final double HOME_ADVANTAGE = 1.05;         // good results for the home team x 1.05
     public static final double REFERENCE_ATTRIBUTE = 75;      // an "average" attribute in this league
+    // Team against team the ratings are close (an 85 OVR side against a 91 one), so the gap counts more
+    public static final double TEAM_SKILL_EXPONENT = 9;
 
     // ----- Fitness -----
     public static final double FITNESS_WEIGHT_IN_SELECTION = 0.3;  // a player at 70% condition counts as 91% as good
@@ -98,21 +100,21 @@ public final class EngineConfig {
     public static final int GOAL_CELEBRATION = 60;
 
     // ----- Attack: how does the attack resolve? (base weights) -----
-    public static final double ATTACK_SHOT = 15;
+    public static final double ATTACK_SHOT = 18;
     public static final double ATTACK_DEFENDER_WINS_BALL = 40;
     public static final double ATTACK_FOUL = 24;
     public static final double ATTACK_OFFSIDE = 5;
     public static final double ATTACK_OUT_FOR_THROW_IN = 12;
     public static final double ATTACK_OUT_FOR_CORNER = 8;
     public static final double ATTACK_OUT_FOR_GOAL_KICK = 6;
-    public static final double ATTACK_OWN_GOAL = 0.1;
-    public static final double ASSIST_CHANCE = 0.7;           // open-play goals that have an assist
+    public static final double ATTACK_OWN_GOAL = 0.06;
+    public static final double ASSIST_CHANCE = 0.9;           // open-play goals that have an assist           // open-play goals that have an assist
     public static final double THROW_IN_TO_OPPONENT = 0.6;    // the attacker usually touched it last
 
     // ----- Free kick: shoot, cross or short pass? -----
-    public static final double FREE_KICK_SHOOT = 25;
-    public static final double FREE_KICK_CROSS = 35;
-    public static final double FREE_KICK_SHORT_PASS = 40;
+    public static final double FREE_KICK_SHOOT = 5;
+    public static final double FREE_KICK_CROSS = 40;
+    public static final double FREE_KICK_SHORT_PASS = 55;
     public static final double DEEP_FREE_KICK_CROSS = 10;     // free kick far from goal (after offside)
     public static final double DEEP_FREE_KICK_SHORT_PASS = 90;
 
@@ -124,11 +126,11 @@ public final class EngineConfig {
     public static final double CROSS_HEADER = 35;
     public static final double CROSS_DEFENDED = 55;
     public static final double CROSS_FOUL = 9;
-    public static final double CROSS_OWN_GOAL = 0.5;
+    public static final double CROSS_OWN_GOAL = 0.3;
 
     // ----- Foul: inside or outside the box? (probability of inside) -----
     public static final double PENALTY_CHANCE_OPEN_PLAY = 0.012;
-    public static final double PENALTY_CHANCE_FROM_CROSS = 0.10;
+    public static final double PENALTY_CHANCE_FROM_CROSS = 0.08;
 
     // ----- Save: what happens to the rebound? -----
     public static final double SAVE_REBOUND_TO_ATTACKER = 20;

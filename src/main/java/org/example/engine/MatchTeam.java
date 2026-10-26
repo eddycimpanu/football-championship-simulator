@@ -4,6 +4,7 @@ import org.example.config.EngineConfig;
 import org.example.model.Attribute;
 import org.example.model.FieldRole;
 import org.example.model.Lineup;
+import org.example.model.OverallCalculators;
 import org.example.model.Player;
 import org.example.model.PlayerAttributes;
 import org.example.model.Team;
@@ -196,18 +197,22 @@ public class MatchTeam {
 
     // ----- Ratings, always from the players on the pitch right now -----
 
+    // Attack = average OVR of the midfielders and forwards; defence = defenders and midfielders.
+    // OVR is already weighted for each position, so a deep-lying playmaker or a slower legendary
+    // centre-back counts at his real value. Fatigue is included: tired players lower the rating.
     public double getAttackRating() {
-        return average(playersIn(FieldRole.MIDFIELDER, FieldRole.FORWARD), p -> {
-            PlayerAttributes a = attributesOf(p);
-            return (a.passing() + a.dribbling() + a.pace()) / 3;
-        });
+        return averageOverall(playersIn(FieldRole.MIDFIELDER, FieldRole.FORWARD));
     }
 
     public double getDefenceRating() {
-        return average(playersIn(FieldRole.DEFENDER, FieldRole.MIDFIELDER), p -> {
-            PlayerAttributes a = attributesOf(p);
-            return (a.defending() + a.physical() + a.pace()) / 3;
-        });
+        return averageOverall(playersIn(FieldRole.DEFENDER, FieldRole.MIDFIELDER));
+    }
+
+    private double averageOverall(List<Player> players) {
+        return players.stream()
+                .mapToInt(p -> OverallCalculators.forPosition(p.getPosition()).calculate(attributesOf(p)))
+                .average()
+                .orElse(1);
     }
 
     public double averageOf(Attribute attribute, FieldRole... roles) {
