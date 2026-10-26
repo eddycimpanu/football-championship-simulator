@@ -5,6 +5,7 @@ import { teamAccent } from '../teams.js';
 import TeamBadge from '../components/TeamBadge.jsx';
 import EventIcon from '../components/EventIcon.jsx';
 import { ratingClass } from '../components/Rating.jsx';
+import OddsStrip from '../components/OddsStrip.jsx';
 
 const PERIOD_EVENTS = ['KICK_OFF', 'HALF_TIME', 'SECOND_HALF', 'FULL_TIME'];
 const PERIOD_LABELS = {
@@ -77,6 +78,12 @@ function Scoreboard({ data }) {
         </div>
         <div className="scoreboard__status">Full time</div>
         {halfTime && <div className="scoreboard__half">Half-time {halfTime.replace('-', '–')}</div>}
+        {data.odds && (
+          <div className="scoreboard__odds">
+            <span className="scoreboard__odds-label">Pre-match odds</span>
+            <OddsStrip odds={data.odds} homeGoals={match.homeGoals} awayGoals={match.awayGoals} compact />
+          </div>
+        )}
       </div>
 
       <div className="scoreboard__team scoreboard__team--away">

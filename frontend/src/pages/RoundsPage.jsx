@@ -3,6 +3,7 @@ import { Link, Navigate, useNavigate, useParams } from 'react-router-dom';
 import { api } from '../api.js';
 import TeamBadge from '../components/TeamBadge.jsx';
 import LiveRound from '../components/LiveRound.jsx';
+import OddsStrip from '../components/OddsStrip.jsx';
 
 // /rounds opens the next round to play (or the last one when the season is over)
 export function CurrentRoundRedirect() {
@@ -67,13 +68,13 @@ function outcomeClass(match, side) {
   return (side === 'home') === homeWon ? 'team--won' : 'team--lost';
 }
 
-function MatchRow({ match, index, justPlayed }) {
+function MatchRow({ match, index, justPlayed, odds }) {
   const played = match.homeGoals != null;
   const Row = played ? Link : 'div';
   const rowProps = played ? { to: `/matches/${match.id}`, 'aria-label': `${match.homeTeam} ${match.homeGoals}-${match.awayGoals} ${match.awayTeam}, open the match` } : {};
   return (
     <li style={{ '--i': index }}>
-      <Row className={`fixture${played ? ' fixture--link' : ''}`} {...rowProps}>
+      <Row className={`fixture${played ? ' fixture--link' : ''}${odds ? ' fixture--odds' : ''}`} {...rowProps}>
       <span className={`fixture__team fixture__team--home ${outcomeClass(match, 'home')}`}>
         <span className="fixture__name">{match.homeTeam}</span>
         <TeamBadge shortName={match.homeShort} size={32} />
@@ -97,6 +98,7 @@ function MatchRow({ match, index, justPlayed }) {
       </span>
 
       <span className="fixture__referee">{match.referee}</span>
+      {odds && <OddsStrip odds={odds} homeGoals={match.homeGoals} awayGoals={match.awayGoals} />}
       </Row>
     </li>
   );
@@ -123,6 +125,8 @@ export default function RoundsPage() {
   const [justPlayed, setJustPlayed] = useState(false);
   const [live, setLive] = useState(null);   // the ten match reports while the round plays on screen
   const [replayed, setReplayed] = useState(false);
+  const [odds, setOdds] = useState(null);   // { open, byMatch } once loaded
+  const [oddsLoading, setOddsLoading] = useState(false);
 
   useEffect(() => {
     setRound(null);
@@ -130,12 +134,29 @@ export default function RoundsPage() {
     setReplayed(false);
     setJustPlayed(false);
     setPlayError(null);
+    setOdds(null);
     Promise.all([api.season(), api.round(number)])
       .then(([seasonData, roundData]) => {
         setSeason(seasonData);
         setRound(roundData);
       })
       .catch(setError);
+
+    // The odds come separately: for the next round the server may need a few seconds to simulate
+    let cancelled = false;
+    setOddsLoading(true);
+    api
+      .roundOdds(number)
+      .then((data) => {
+        if (cancelled) return;
+        const byMatch = Object.fromEntries(data.matches.map((m) => [m.matchId, m]));
+        setOdds({ open: data.open, byMatch });
+      })
+      .catch(() => !cancelled && setOdds(null))
+      .finally(() => !cancelled && setOddsLoading(false));
+    return () => {
+      cancelled = true;
+    };
   }, [number]);
 
   async function simulate() {
@@ -201,6 +222,12 @@ export default function RoundsPage() {
       <RoundPicker season={season} selected={number} />
 
       <div className="round-action">
+        {round.next && !live && oddsLoading && (
+          <p className="round-action__note odds-loading">
+            <span className="spinner" aria-hidden="true" />
+            Setting the odds: every match is simulated 1,000 times…
+          </p>
+        )}
         {round.next && !live && (
           <button type="button" className="play-button" onClick={simulate} disabled={playing}>
             <BallIcon />
@@ -240,7 +267,8 @@ export default function RoundsPage() {
       ) : (
         <ol className="fixtures">
           {round.matches.map((match, i) => (
-            <MatchRow key={match.id} match={match} index={i} justPlayed={justPlayed && !replayed} />
+            <MatchRow key={match.id} match={match} index={i} justPlayed={justPlayed && !replayed}
+              odds={odds?.byMatch[match.id]} />
           ))}
         </ol>
       )}
