@@ -1,4 +1,5 @@
 import { Link, NavLink } from 'react-router-dom';
+import ResetLeague from './ResetLeague.jsx';
 import { formatMoney, useBetting } from '../betting.jsx';
 
 const LINKS = [
@@ -38,7 +39,7 @@ function Wallet() {
   );
 }
 
-export default function Sidebar() {
+export default function Sidebar({ onReset }) {
   return (
     <aside className="sidebar">
       <div className="brand">
@@ -59,6 +60,7 @@ export default function Sidebar() {
             {!link.ready && <span className="nav__soon">soon</span>}
           </NavLink>
         ))}
+        <ResetLeague onReset={onReset} />
       </nav>
       <Wallet />
     </aside>

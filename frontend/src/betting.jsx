@@ -81,6 +81,7 @@ export function BettingProvider({ children }) {
       setStake,
       remove: (matchId) => setSlip((items) => items.filter((i) => i.matchId !== matchId)),
       clearRound: (round) => setSlip((items) => items.filter((i) => i.round !== round)),
+      clearAll: () => setSlip([]),
       isPicked: (matchId, selection) => slip.some((i) => i.matchId === matchId && i.selection === selection),
     }),
     [me, refresh, slip, toggle, stake],

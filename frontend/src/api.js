@@ -20,6 +20,7 @@ export const api = {
   round: (number) => request('GET', `/rounds/${number}`),
   roundOdds: (number) => request('GET', `/rounds/${number}/odds`),
   playNextRound: () => request('POST', '/rounds/next'),
+  resetSeason: () => request('POST', '/season/reset'),
   match: (id) => request('GET', `/matches/${id}`),
   searchPlayers: (text) => request('GET', `/players?search=${encodeURIComponent(text)}`),
   player: (id) => request('GET', `/players/${id}`),

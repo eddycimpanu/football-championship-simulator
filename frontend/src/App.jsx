@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { Navigate, Route, Routes } from 'react-router-dom';
 import Sidebar from './components/Sidebar.jsx';
 import TablePage from './pages/TablePage.jsx';
@@ -13,10 +14,12 @@ import BettingPage from './pages/BettingPage.jsx';
 import BettorsPage from './pages/BettorsPage.jsx';
 
 export default function App() {
+  // After a reset every page is mounted again, so it loads the new season
+  const [seasonKey, setSeasonKey] = useState(0);
   return (
     <div className="app">
-      <Sidebar />
-      <main className="content">
+      <Sidebar onReset={() => setSeasonKey((k) => k + 1)} />
+      <main className="content" key={seasonKey}>
         <Routes>
           <Route path="/" element={<Navigate to="/table" replace />} />
           <Route path="/table" element={<TablePage />} />
