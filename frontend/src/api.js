@@ -13,4 +13,5 @@ export const api = {
   season: () => request('GET', '/season'),
   round: (number) => request('GET', `/rounds/${number}`),
   playNextRound: () => request('POST', '/rounds/next'),
+  match: (id) => request('GET', `/matches/${id}`),
 };

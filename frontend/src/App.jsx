@@ -3,6 +3,7 @@ import Sidebar from './components/Sidebar.jsx';
 import TablePage from './pages/TablePage.jsx';
 import RoundsPage, { CurrentRoundRedirect } from './pages/RoundsPage.jsx';
 import ComingSoonPage from './pages/ComingSoonPage.jsx';
+import MatchPage from './pages/MatchPage.jsx';
 
 export default function App() {
   return (
@@ -14,6 +15,7 @@ export default function App() {
           <Route path="/table" element={<TablePage />} />
           <Route path="/rounds" element={<CurrentRoundRedirect />} />
           <Route path="/rounds/:number" element={<RoundsPage />} />
+          <Route path="/matches/:id" element={<MatchPage />} />
           <Route path="/players" element={<ComingSoonPage title="Players" />} />
           <Route path="/reports" element={<ComingSoonPage title="Season reports" />} />
           <Route path="/betting" element={<ComingSoonPage title="Betting" />} />

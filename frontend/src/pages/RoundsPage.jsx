@@ -68,8 +68,11 @@ function outcomeClass(match, side) {
 
 function MatchRow({ match, index, justPlayed }) {
   const played = match.homeGoals != null;
+  const Row = played ? Link : 'div';
+  const rowProps = played ? { to: `/matches/${match.id}`, 'aria-label': `${match.homeTeam} ${match.homeGoals}-${match.awayGoals} ${match.awayTeam}, open the match` } : {};
   return (
-    <li className="fixture" style={{ '--i': index }}>
+    <li style={{ '--i': index }}>
+      <Row className={`fixture${played ? ' fixture--link' : ''}`} {...rowProps}>
       <span className={`fixture__team fixture__team--home ${outcomeClass(match, 'home')}`}>
         <span className="fixture__name">{match.homeTeam}</span>
         <TeamBadge shortName={match.homeShort} size={32} />
@@ -93,6 +96,7 @@ function MatchRow({ match, index, justPlayed }) {
       </span>
 
       <span className="fixture__referee">{match.referee}</span>
+      </Row>
     </li>
   );
 }
