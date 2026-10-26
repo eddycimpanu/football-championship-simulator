@@ -1,48 +1,104 @@
 # Football Championship Simulator
 
-A Java console application that simulates a full season of an all-star football league: 20 legendary clubs, 500 players, 38 rounds. Every match is played phase by phase by a probabilistic engine, where each decision depends on the players' attributes, the strength of both teams and luck.
+A Java console game that simulates a full football season: **20 legendary clubs, 500 all-time great players, 38 rounds**. You play the season round by round, follow the league table, open any match to see what happened minute by minute, and check every player's statistics. Everything is saved in a PostgreSQL database, so you can close the game and continue later.
 
-**Tech stack:** Java 21+, Maven, PostgreSQL, plain JDBC with hand-written SQL.
+Every match is played by a probabilistic engine: better players have better chances, but nothing is ever certain. Messi will score more often than an average striker, and Steaua București can still beat Real Madrid.
 
-## Features
+## What you can do
 
-- Match engine built as a **state machine**: each match is a chain of phases (attack, cross, foul, shot...) following a [decision tree](docs/match-simulation-tree-decision.md).
-- **Roulette-wheel decisions**: better players get a bigger slice of the wheel, but nothing is ever certain.
-- Stoppage time, fatigue, cards and suspensions, injuries and up to 5 substitutions chosen by the coach.
-- Full season with a double round-robin schedule, referee rotation and a league table with head-to-head tie-breaks.
-- Team and player statistics, match ratings and man of the match.
-- Reproducible seasons: the same seed always gives the same season.
+```
+=== All-Star League 2026/27 | next: round 2 of 38 ===
+1. Simulate next round
+2. Show the league table
+3. Find a match
+4. Player statistics
+5. Top scorers
+6. Team results and fixtures
+7. Season reports and awards
+8. Start a new season
+0. Exit
+```
 
-## How the engine works
+- **Simulate the next round** and see all ten results at once.
+- **League table** with points, goal difference, head-to-head and recent form.
+- **Find a match** by typing the two teams (`steaua`, `barcelona`) and read the key events or the full commentary, the team statistics and the player ratings.
+- **Player statistics**: goals, assists, cards, minutes and rating for the season and for every match.
+- **Season reports**: top scorers and assists, discipline, best goalkeepers, team of the season, MVP and season records.
+- **Continue where you stopped**: on startup the game loads the last saved season.
 
-Every decision is a roulette wheel. Each outcome gets a base weight, the players involved change it with a skill factor `(attacker / defender)^2`, and a random number between 0 and 1 picks the outcome. Team against team, the attack rating (average OVR of the midfielders and forwards) meets the defence rating with an exponent of 9, so stronger sides create clearly more chances.
+## A match report
 
-The weights were calibrated with `CalibrationRunner`, which plays many seasons in memory. Over 30 seasons (11,400 matches) the engine averages 2.9 goals, 26 shots, 4 yellow cards and 0.16 red cards per match, 77% of goals have an assist, and the champion finishes on about 78 points against 21 for the last team, close to real top-flight football.
+```
+=== Steaua București 3-6 Barcelona (round 1, KEY events, referee Pierluigi Collina) ===
+1'      KICK-OFF
+13'     GOAL! Dani Alves (Barcelona), assist: Lionel Messi [0-1]
+16'     GOAL! Luis Suárez (Barcelona), assist: Dani Alves [0-2]
+31'     GOAL! Lionel Messi (Barcelona) with a header, assist: Xavi [0-3]
+40'     GOAL! Lionel Messi (Barcelona), assist: Jordi Alba [0-4]
+43'     GOAL! Nicolae Dică (Steaua București), assist: Lucian Bălan [1-4]
+45+6'   HALF-TIME [1-4]
+47'     GOAL! Victor Pițurcă (Steaua București), assist: Adrian Ilie [2-4]
+53'     GOAL! Jordi Alba (Barcelona) with a header, assist: Xavi [2-5]
+60'     SUBSTITUTION (Steaua București): Adrian Bumbescu on, Daniel Prodan off (card risk)
+70'     GOAL! Lionel Messi (Barcelona), assist: Andrés Iniesta [2-6]
+90+2'   GOAL! Gheorghe Hagi (Steaua București) from a free kick [3-6]
+90+8'   FULL-TIME [3-6]
 
-## OOP highlights
+                    STE      BAR
+Shots                 7       14
+On target             4        8
+Possession %         47       53
+```
 
-Inheritance (`Person` → `Player`, `Coach`, `Referee`), State pattern (one class per state of the decision tree), Strategy (OVR calculators per position), DAO pattern for the database, immutable records as value objects and generics (`RouletteWheel<T>`, `Repository<T, ID>`).
+## How a match is simulated
+
+A match is a chain of short passages of play: an attack, a cross, a foul, a shot. The engine is a **state machine** that moves from one situation to the next, following this [decision tree](docs/match-simulation-tree-decision.md).
+
+Every decision (does the attack break down? is the shot a goal?) is made with a **roulette wheel**. Each outcome gets a slice, and the players involved make the slices bigger or smaller: a great shooter facing an average keeper gets a bigger "goal" slice. Then a random number picks the outcome.
+
+On top of that the engine handles stoppage time, fatigue, yellow and red cards, suspensions, injuries and up to five substitutions chosen by the coach.
+
+The weights were tuned by simulating thousands of matches. Over 30 seasons the engine averages 2.9 goals, 26 shots and 4 yellow cards per match, and the champion finishes on about 78 points, close to real top-flight football.
+
+## Built with
+
+- **Java 21+**, **Maven**, **PostgreSQL** with plain **JDBC** and hand-written SQL
+- **JUnit 5**: 73 tests for the engine, the players, the schedule, the league table and the seasons
+
+Design highlights:
+
+- **OOP**: `Person` → `Player`, `Coach`, `Referee`; encapsulated player state; abstract match states and events
+- **State pattern**: one class per situation of the decision tree (`AttackState`, `CrossState`, `ShootState`...)
+- **Strategy pattern**: a different OVR formula for each position
+- **DAO pattern** and **transactions**: each match is saved completely or not at all
+- **Dependency inversion**: the league logic only knows a `SeasonStore` interface, so the tests use an in-memory store instead of the database
+- **SQL**: a view for the league table; CTEs, window functions and aggregate filters for the season reports
+
+## Database
+
+```mermaid
+erDiagram
+    teams ||--|| coaches : "has"
+    teams ||--o{ players : "has"
+    seasons ||--o{ matches : "has"
+    referees ||--o{ matches : "officiates"
+    matches ||--o{ match_events : "has"
+    matches ||--o{ player_match_stats : "has"
+    matches ||--o{ team_match_stats : "has"
+    seasons ||--o{ player_season_state : "tracks"
+```
+
+The league table (`v_standings`) is a view calculated from the played matches.
 
 ## Getting started
 
 1. Create a PostgreSQL database `football_cs` with a user `fcs_user` that owns it.
-2. Run `src/main/resources/db/schema.sql`, then `seed.sql`.
+2. Run the scripts in `src/main/resources/db`, in this order: `schema.sql`, `seed.sql`, `season_schema.sql`.
 3. Copy `src/main/resources/db.properties.example` to `db.properties` and fill in your password.
-4. Run `org.example.Main` from IntelliJ.
+4. Run `org.example.Main`.
 
-## Sample output
-
-```
-=== Barcelona 2-2 Real Madrid (KEY events, referee Bjorn Kuipers) ===
-31'     GOAL! Zinedine Zidane (Real Madrid), assist: Luka Modrić [0-1]
-45+3'   OWN GOAL by Zinedine Zidane, goal for Barcelona [1-1]
-50'     GOAL! Lionel Messi (Barcelona), assist: Sergio Busquets [2-1]
-57'     GOAL! Sergio Ramos (Real Madrid) with a header, assist: Dani Carvajal [2-2]
-61'     SUBSTITUTION (Real Madrid): Marcelo on, Roberto Carlos off (card risk)
-90+5'   FULL-TIME [2-2]
-Man of the match: Sergio Ramos (Real Madrid), rating 7.6
-```
+To run the tests, right-click `src/test/java` → **Run 'All Tests'** in IntelliJ, or use `mvn test`.
 
 ## About the data
 
-The league is fictional, with legends from different eras. Player attributes are inspired by FIFA / EA FC ratings; they are approximations, not official EA Sports data.
+The league is fictional, with legends from different eras, each at the club where he was most iconic. Player attributes are inspired by FIFA / EA FC ratings; they are approximations, not official EA Sports data.
