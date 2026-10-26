@@ -8,6 +8,7 @@ const LINKS = [
   { to: '/players', label: 'Players', ready: true },
   { to: '/reports', label: 'Season reports', ready: true },
   { to: '/betting', label: 'My bets', ready: true },
+  { to: '/bettors', label: 'Bettors', ready: true },
 ];
 
 function PitchMark() {

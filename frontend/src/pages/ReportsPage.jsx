@@ -5,6 +5,7 @@ import { teamAccent } from '../teams.js';
 import { splitName } from '../format.js';
 import TeamBadge from '../components/TeamBadge.jsx';
 import ServerDown from '../components/ServerDown.jsx';
+import SeasonFinale from '../components/SeasonFinale.jsx';
 
 // Where each player of the 4-3-3 stands on the pitch (in %, the attack goes up).
 // The report lists them as GK, LB, CB, CB, RB, then three midfielders and three forwards.
@@ -98,9 +99,12 @@ function MatchList({ title, matches }) {
 export default function ReportsPage() {
   const [r, setReports] = useState(null);
   const [error, setError] = useState(null);
+  const [bettors, setBettors] = useState(null);
 
   useEffect(() => {
     api.reports().then(setReports).catch(setError);
+    // Only used at the end of the season, for the best bettor next to the champion and the MVP
+    api.bettors().then(setBettors).catch(() => {});
   }, []);
 
   if (error) return <ServerDown />;
@@ -127,6 +131,15 @@ export default function ReportsPage() {
           {r.season} after round {r.roundsPlayed}. Awards count players with at least {r.awardMinMinutes} minutes.
         </p>
       </header>
+
+      {bettors?.finished && (
+        <SeasonFinale
+          season={bettors.season}
+          champion={bettors.champion}
+          mvp={mvp}
+          bestBettor={bettors.bettors[0].bettor}
+        />
+      )}
 
       <div className="awards">
         {mvp && (

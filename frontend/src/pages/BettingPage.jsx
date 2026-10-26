@@ -31,7 +31,7 @@ function SelectionRow({ sel }) {
   );
 }
 
-function TicketCard({ ticket }) {
+export function TicketCard({ ticket }) {
   const status = ticket.status.toLowerCase();
   const right = ticket.selections.filter((s) => s.status === 'WON').length;
   return (

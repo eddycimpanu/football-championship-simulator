@@ -30,4 +30,6 @@ export const api = {
   placeTicket: (stake, selections) => request('POST', '/tickets', { stake, selections }),
   agents: () => request('GET', '/agents'),
   agentTickets: (round) => request('GET', `/rounds/${round}/agent-tickets`),
+  bettors: () => request('GET', '/bettors'),
+  bettorTickets: (id) => request('GET', `/bettors/${id}/tickets`),
 };

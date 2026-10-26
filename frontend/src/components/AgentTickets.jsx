@@ -1,4 +1,5 @@
 import { formatMoney, pickLabel } from '../betting.jsx';
+import { Link } from 'react-router-dom';
 import AgentAvatar from './AgentAvatar.jsx';
 
 // What the agents bet on a round. Before the round the tickets are open; after it they show won or lost.
@@ -14,7 +15,10 @@ export default function AgentTickets({ tickets }) {
 
   return (
     <section className="panel agents-panel">
-      <h2 className="panel__title">What the agents bet</h2>
+      <div className="panel__head">
+        <h2 className="panel__title">What the agents bet</h2>
+        <Link className="text-link" to="/bettors">Bettors table</Link>
+      </div>
       <ul className="agent-blocks">
         {byAgent.map((agent) => (
           <li key={agent.key} className="agent-block">
