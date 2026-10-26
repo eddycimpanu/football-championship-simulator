@@ -4,6 +4,8 @@ import { api } from '../api.js';
 import TeamBadge from '../components/TeamBadge.jsx';
 import LiveRound from '../components/LiveRound.jsx';
 import OddsStrip from '../components/OddsStrip.jsx';
+import BetSlip from '../components/BetSlip.jsx';
+import { formatMoney, useBetting } from '../betting.jsx';
 
 // /rounds opens the next round to play (or the last one when the season is over)
 export function CurrentRoundRedirect() {
@@ -68,7 +70,7 @@ function outcomeClass(match, side) {
   return (side === 'home') === homeWon ? 'team--won' : 'team--lost';
 }
 
-function MatchRow({ match, index, justPlayed, odds }) {
+function MatchRow({ match, index, justPlayed, odds, betting }) {
   const played = match.homeGoals != null;
   const Row = played ? Link : 'div';
   const rowProps = played ? { to: `/matches/${match.id}`, 'aria-label': `${match.homeTeam} ${match.homeGoals}-${match.awayGoals} ${match.awayTeam}, open the match` } : {};
@@ -98,7 +100,16 @@ function MatchRow({ match, index, justPlayed, odds }) {
       </span>
 
       <span className="fixture__referee">{match.referee}</span>
-      {odds && <OddsStrip odds={odds} homeGoals={match.homeGoals} awayGoals={match.awayGoals} />}
+      {odds && (
+        <OddsStrip
+          odds={odds}
+          homeGoals={match.homeGoals}
+          awayGoals={match.awayGoals}
+          onPick={betting ? (selection, price) => betting.toggle({ matchId: match.id, selection, odds: price,
+            homeTeam: match.homeTeam, awayTeam: match.awayTeam, round: betting.round }) : undefined}
+          isPicked={betting ? (selection) => betting.isPicked(match.id, selection) : undefined}
+        />
+      )}
       </Row>
     </li>
   );
@@ -114,6 +125,23 @@ function BallIcon() {
   );
 }
 
+function BetResult({ result }) {
+  const profit = result.returned - result.staked;
+  const title = result.tickets === 1
+    ? (result.won === 1 ? 'Your ticket won!' : `Your ticket lost: ${result.right} of ${result.selections} selections right.`)
+    : `Your tickets: ${result.won} won, ${result.tickets - result.won} lost.`;
+  return (
+    <div className={`bet-result ${profit >= 0 ? 'bet-result--up' : 'bet-result--down'}`} role="status">
+      <strong>{title}</strong>
+      <span>
+        Staked {formatMoney(result.staked)}, got back {formatMoney(result.returned)}
+        {' '}({profit >= 0 ? '+' : ''}{formatMoney(profit)}).
+      </span>
+      <Link className="text-link" to="/betting">See all your tickets</Link>
+    </div>
+  );
+}
+
 export default function RoundsPage() {
   const number = Number(useParams().number);
   const navigate = useNavigate();
@@ -126,6 +154,9 @@ export default function RoundsPage() {
   const [live, setLive] = useState(null);   // the ten match reports while the round plays on screen
   const [replayed, setReplayed] = useState(false);
   const [odds, setOdds] = useState(null);   // { open, byMatch } once loaded
+  const betting = useBetting();
+  const [liveBets, setLiveBets] = useState([]);   // your bets on the round being played live
+  const [betResult, setBetResult] = useState(null);
   const [oddsLoading, setOddsLoading] = useState(false);
 
   useEffect(() => {
@@ -135,6 +166,7 @@ export default function RoundsPage() {
     setJustPlayed(false);
     setPlayError(null);
     setOdds(null);
+    setBetResult(null);
     Promise.all([api.season(), api.round(number)])
       .then(([seasonData, roundData]) => {
         setSeason(seasonData);
@@ -162,8 +194,12 @@ export default function RoundsPage() {
   async function simulate() {
     setPlaying(true);
     setPlayError(null);
+    // Remember your tickets before the round is played: the server pays them out straight away
+    const myBets = (betting.me?.open ?? []).filter((t) => t.round === number);
     try {
       const played = await api.playNextRound();
+      setLiveBets(myBets);
+      betting.clearRound(number);
       // The round is already decided and saved; now it is replayed on screen
       const details = await Promise.all(played.matches.map((m) => api.match(m.id)));
       setRound(played);
@@ -177,12 +213,18 @@ export default function RoundsPage() {
     }
   }
 
-  const finishLive = useCallback(() => setJustPlayed(true), []);
+  const { refresh } = betting;
+  // The bets were settled on the server when the round was played; the new balance is shown after the replay
+  const finishLive = useCallback(() => {
+    setJustPlayed(true);
+    refresh();
+  }, [refresh]);
 
   if (error) return <ServerDown />;
   if (!season || !round) return <div className="loading">Loading round {number}…</div>;
 
   const liveNow = live && !justPlayed;
+  const canBet = round.next && !live && odds?.open && betting.me != null;
   const status = liveNow ? 'Live' : round.played ? 'Played' : round.next ? 'Next up' : 'Still to come';
   const hasPrevious = number > 1;
   const hasNext = number < season.totalRounds;
@@ -262,15 +304,20 @@ export default function RoundsPage() {
         {playError && <p className="round-action__error" role="alert">{playError}</p>}
       </div>
 
+      {betResult && <BetResult result={betResult} />}
+
       {live ? (
-        <LiveRound details={live} onFinish={finishLive} />
+        <LiveRound details={live} onFinish={finishLive} myBets={liveBets} onBetsSettled={setBetResult} />
       ) : (
-        <ol className="fixtures">
-          {round.matches.map((match, i) => (
-            <MatchRow key={match.id} match={match} index={i} justPlayed={justPlayed && !replayed}
-              odds={odds?.byMatch[match.id]} />
-          ))}
-        </ol>
+        <div className={canBet ? 'betting-layout' : ''}>
+          <ol className="fixtures">
+            {round.matches.map((match, i) => (
+              <MatchRow key={match.id} match={match} index={i} justPlayed={justPlayed && !replayed}
+                odds={odds?.byMatch[match.id]} betting={canBet ? { ...betting, round: number } : null} />
+            ))}
+          </ol>
+          {canBet && <BetSlip round={number} openTickets={(betting.me?.open ?? []).filter((t) => t.round === number)} />}
+        </div>
       )}
     </>
   );

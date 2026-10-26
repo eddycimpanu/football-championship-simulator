@@ -1,6 +1,9 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import TeamBadge from './TeamBadge.jsx';
 import EventIcon from './EventIcon.jsx';
+import { SHORT_LABELS, formatMoney, selectionWins } from '../betting.jsx';
+
+// myBets = your tickets on this round, each with its selections
 
 // Replays a round that has just been simulated: the ten matches run at the same time,
 // on one shared clock, and every key event appears at its minute.
@@ -79,7 +82,7 @@ function matchState(m, v, halfTimeAt) {
   return { home, away, status, last: happened.at(-1) ?? null, goals: goals.length };
 }
 
-export default function LiveRound({ details, onFinish }) {
+export default function LiveRound({ details, onFinish, myBets = [], onBetsSettled }) {
   const timeline = useMemo(() => buildTimeline(details), [details]);
   const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
   const [v, setV] = useState(reduced ? timeline.end : 0);
@@ -149,8 +152,36 @@ export default function LiveRound({ details, onFinish }) {
   });
 
   useEffect(() => {
-    if (finished) onFinish();
-  }, [finished, onFinish]);
+    if (!finished) return;
+    onFinish();
+    if (myBets.length > 0 && onBetsSettled) {
+      // How your tickets ended, from the final scores (the server has already paid them)
+      let won = 0;
+      let returned = 0;
+      let right = 0;
+      let selections = 0;
+      myBets.forEach((ticket) => {
+        const results = ticket.selections.map((sel) => isWinning(sel));
+        right += results.filter(Boolean).length;
+        selections += results.length;
+        if (results.every(Boolean)) {
+          won++;
+          returned += Number(ticket.stake) * Number(ticket.totalOdds);
+        }
+      });
+      const staked = myBets.reduce((sum, t) => sum + Number(t.stake), 0);
+      onBetsSettled({ tickets: myBets.length, won, staked, returned, right, selections });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [finished]);
+
+  // Is this selection winning at the current score?
+  function isWinning(selection) {
+    const i = timeline.matches.findIndex((m) => m.match.id === selection.matchId);
+    const s = states[i];
+    return s ? selectionWins(selection.selection, s.home, s.away) : false;
+  }
+  const mySelections = myBets.flatMap((t) => t.selections.map((sel) => ({ ...sel, ticketId: t.id })));
 
   const feed = timeline.matches
     .flatMap((m) =>
@@ -204,6 +235,20 @@ export default function LiveRound({ details, onFinish }) {
                     <TeamBadge shortName={match.awayShort} size={32} />
                     <span className="fixture__name">{match.awayTeam}</span>
                   </span>
+                  {mySelections.some((b) => b.matchId === match.id) && (
+                    <span className="live-bets">
+                      {mySelections.filter((b) => b.matchId === match.id).map((b) => {
+                        const winning = selectionWins(b.selection, s.home, s.away);
+                        return (
+                          <span key={`${b.ticketId}-${b.id}`}
+                            className={`live-bet ${winning ? 'live-bet--winning' : 'live-bet--losing'}`}
+                            title={`On your ticket at ${Number(b.odds).toFixed(2)}`}>
+                            Your pick: {SHORT_LABELS[b.selection]}
+                          </span>
+                        );
+                      })}
+                    </span>
+                  )}
                   <span className="fixture__latest">
                     <span className={`match-status match-status--${s.status}`}>
                       {s.status === 'ft' ? 'FT' : s.status === 'ht' ? 'HT' : clockText(v, timeline.halfTimeAt, paused, false)}
@@ -221,6 +266,28 @@ export default function LiveRound({ details, onFinish }) {
           })}
         </ol>
 
+        <div className="live-side">
+        {myBets.length > 0 && (
+          <section className="panel live-tickets" aria-label="Your tickets">
+            <h2 className="panel__title">{myBets.length === 1 ? 'Your ticket' : 'Your tickets'}</h2>
+            {myBets.map((ticket) => {
+              const right = ticket.selections.filter((sel) => isWinning(sel)).length;
+              const all = right === ticket.selections.length;
+              return (
+                <div key={ticket.id} className={`live-ticket ${all ? 'live-ticket--up' : 'live-ticket--down'}`}>
+                  <div className="live-ticket__count">
+                    {right} of {ticket.selections.length}
+                    <span>{finished ? (all ? 'Won' : 'Lost') : 'winning right now'}</span>
+                  </div>
+                  <div className="live-ticket__money">
+                    {formatMoney(ticket.stake)} at {Number(ticket.totalOdds).toFixed(2)}
+                    <strong>{all ? `Pays ${formatMoney(Number(ticket.stake) * Number(ticket.totalOdds))}` : 'Not paying yet'}</strong>
+                  </div>
+                </div>
+              );
+            })}
+          </section>
+        )}
         <aside className="panel feed" aria-label="Goals and red cards">
           <h2 className="panel__title">Goals and red cards</h2>
           {feed.length === 0 && <p className="feed__empty">Nothing yet. The first goal will show up here.</p>}
@@ -241,6 +308,7 @@ export default function LiveRound({ details, onFinish }) {
             ))}
           </ol>
         </aside>
+        </div>
       </div>
     </div>
   );

@@ -1,9 +1,15 @@
 // Every call to the Spring Boot backend goes through this file.
 
-async function request(method, path) {
-  const response = await fetch(`/api${path}`, { method });
+async function request(method, path, body) {
+  const response = await fetch(`/api${path}`, {
+    method,
+    headers: body ? { 'Content-Type': 'application/json' } : undefined,
+    body: body ? JSON.stringify(body) : undefined,
+  });
   if (!response.ok) {
-    throw new Error(`The server answered ${response.status} for ${path}`);
+    // The server explains broken rules, e.g. "Not enough credits for a stake of 50.00"
+    const problem = await response.json().catch(() => null);
+    throw new Error(problem?.message ?? `The server answered ${response.status} for ${path}`);
   }
   return response.json();
 }
@@ -20,4 +26,6 @@ export const api = {
   teams: () => request('GET', '/teams'),
   team: (id) => request('GET', `/teams/${id}`),
   reports: () => request('GET', '/reports'),
+  bettingMe: () => request('GET', '/betting/me'),
+  placeTicket: (stake, selections) => request('POST', '/tickets', { stake, selections }),
 };

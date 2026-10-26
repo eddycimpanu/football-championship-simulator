@@ -1,4 +1,5 @@
-import { NavLink } from 'react-router-dom';
+import { Link, NavLink } from 'react-router-dom';
+import { formatMoney, useBetting } from '../betting.jsx';
 
 const LINKS = [
   { to: '/table', label: 'League table', ready: true },
@@ -6,7 +7,7 @@ const LINKS = [
   { to: '/teams', label: 'Clubs', ready: true },
   { to: '/players', label: 'Players', ready: true },
   { to: '/reports', label: 'Season reports', ready: true },
-  { to: '/betting', label: 'Betting' },
+  { to: '/betting', label: 'My bets', ready: true },
 ];
 
 function PitchMark() {
@@ -18,6 +19,21 @@ function PitchMark() {
       <rect x="1" y="7" width="4" height="10" fill="none" stroke="currentColor" strokeWidth="1.5" />
       <rect x="29" y="7" width="4" height="10" fill="none" stroke="currentColor" strokeWidth="1.5" />
     </svg>
+  );
+}
+
+function Wallet() {
+  const { me } = useBetting();
+  if (!me) return null;
+  const profit = Number(me.bettor.balance) - Number(me.bettor.startingBalance);
+  return (
+    <Link className="wallet" to="/betting">
+      <span className="wallet__label">Your credits</span>
+      <span className="wallet__balance">{formatMoney(me.bettor.balance)}</span>
+      <span className={`wallet__profit ${profit >= 0 ? 'wallet__profit--up' : 'wallet__profit--down'}`}>
+        {profit >= 0 ? '+' : ''}{formatMoney(profit)} this season
+      </span>
+    </Link>
   );
 }
 
@@ -43,6 +59,7 @@ export default function Sidebar() {
           </NavLink>
         ))}
       </nav>
+      <Wallet />
     </aside>
   );
 }

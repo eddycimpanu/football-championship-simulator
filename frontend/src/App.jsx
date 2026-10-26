@@ -9,6 +9,7 @@ import PlayerPage from './pages/PlayerPage.jsx';
 import ClubsPage from './pages/ClubsPage.jsx';
 import TeamPage from './pages/TeamPage.jsx';
 import ReportsPage from './pages/ReportsPage.jsx';
+import BettingPage from './pages/BettingPage.jsx';
 
 export default function App() {
   return (
@@ -26,7 +27,7 @@ export default function App() {
           <Route path="/players" element={<PlayersPage />} />
           <Route path="/players/:id" element={<PlayerPage />} />
           <Route path="/reports" element={<ReportsPage />} />
-          <Route path="/betting" element={<ComingSoonPage title="Betting" />} />
+          <Route path="/betting" element={<BettingPage />} />
           <Route path="*" element={<Navigate to="/table" replace />} />
         </Routes>
       </main>
