@@ -4,6 +4,7 @@ import { api } from '../api.js';
 import { teamAccent } from '../teams.js';
 import TeamBadge from '../components/TeamBadge.jsx';
 import EventIcon from '../components/EventIcon.jsx';
+import { ratingClass } from '../components/Rating.jsx';
 
 const PERIOD_EVENTS = ['KICK_OFF', 'HALF_TIME', 'SECOND_HALF', 'FULL_TIME'];
 const PERIOD_LABELS = {
@@ -168,14 +169,6 @@ function StatsPanel({ home, away, match }) {
       })}
     </section>
   );
-}
-
-function ratingClass(rating) {
-  if (rating == null) return 'rating--none';
-  if (rating >= 8) return 'rating--great';
-  if (rating >= 7) return 'rating--good';
-  if (rating >= 6) return 'rating--ok';
-  return 'rating--poor';
 }
 
 function PlayerRatings({ team, shortName, players, manOfTheMatch }) {

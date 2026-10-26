@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { api } from '../api.js';
 import { teamAccent } from '../teams.js';
 import TeamBadge from '../components/TeamBadge.jsx';
@@ -132,7 +133,7 @@ function LeagueTable({ rows }) {
               </td>
               <th scope="row" className="league__club">
                 <TeamBadge shortName={row.shortName} size={30} />
-                <span className="club-name">{row.team}</span>
+                <Link className="club-name club-link" to={`/teams/${row.teamId}`}>{row.team}</Link>
               </th>
               <td>{row.played}</td>
               <td className="hide-sm">{row.won}</td>

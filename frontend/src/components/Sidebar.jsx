@@ -3,8 +3,9 @@ import { NavLink } from 'react-router-dom';
 const LINKS = [
   { to: '/table', label: 'League table', ready: true },
   { to: '/rounds', label: 'Rounds', ready: true },
-  { to: '/players', label: 'Players' },
-  { to: '/reports', label: 'Season reports' },
+  { to: '/teams', label: 'Clubs', ready: true },
+  { to: '/players', label: 'Players', ready: true },
+  { to: '/reports', label: 'Season reports', ready: true },
   { to: '/betting', label: 'Betting' },
 ];
 

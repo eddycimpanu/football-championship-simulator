@@ -14,4 +14,9 @@ export const api = {
   round: (number) => request('GET', `/rounds/${number}`),
   playNextRound: () => request('POST', '/rounds/next'),
   match: (id) => request('GET', `/matches/${id}`),
+  searchPlayers: (text) => request('GET', `/players?search=${encodeURIComponent(text)}`),
+  player: (id) => request('GET', `/players/${id}`),
+  teams: () => request('GET', '/teams'),
+  team: (id) => request('GET', `/teams/${id}`),
+  reports: () => request('GET', '/reports'),
 };
