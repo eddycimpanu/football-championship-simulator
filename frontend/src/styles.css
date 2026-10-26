@@ -528,7 +528,7 @@ a {
 
 @media (max-width: 860px) {
   .app {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr);
   }
   .sidebar {
     position: static;
@@ -579,5 +579,337 @@ a {
   * {
     animation: none !important;
     transition: none !important;
+  }
+}
+
+/* ---------- Rounds page ---------- */
+.round-head {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 24px;
+}
+
+.round-head__status {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 6px;
+  color: var(--muted);
+  font-size: 14px;
+}
+
+.status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--faint);
+}
+
+.status-dot--played {
+  background: var(--win);
+}
+
+.status-dot--next {
+  background: var(--amber);
+  box-shadow: 0 0 0 4px rgba(255, 194, 61, 0.18);
+}
+
+.round-head__title {
+  margin: 0;
+  font-family: var(--display);
+  font-weight: 800;
+  font-size: clamp(44px, 6vw, 68px);
+  line-height: 0.9;
+}
+
+.round-head__arrows {
+  display: flex;
+  gap: 8px;
+}
+
+.arrow {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  border: 1px solid var(--line-strong);
+  background: var(--surface);
+  color: var(--text);
+  cursor: pointer;
+  transition: background 120ms, border-color 120ms;
+}
+
+.arrow:hover:not(:disabled) {
+  background: var(--surface-2);
+  border-color: var(--muted);
+}
+
+.arrow:disabled {
+  color: var(--faint);
+  cursor: default;
+  opacity: 0.5;
+}
+
+/* The 38 rounds as numbered chips */
+.picker {
+  display: flex;
+  gap: 6px;
+  margin: 24px 0 0;
+  padding: 4px 2px 10px;
+  overflow-x: auto;
+  scrollbar-width: thin;
+  scrollbar-color: var(--surface-2) transparent;
+}
+
+.picker__chip {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 38px;
+  height: 38px;
+  border-radius: 10px;
+  font-family: var(--display);
+  font-weight: 600;
+  font-size: 16px;
+  text-decoration: none;
+  transition: background 120ms, color 120ms;
+}
+
+.picker__chip--played {
+  background: var(--surface-2);
+  color: var(--text);
+}
+
+.picker__chip--next {
+  color: var(--amber);
+  box-shadow: inset 0 0 0 1.5px var(--amber);
+}
+
+.picker__chip--later {
+  color: var(--faint);
+}
+
+.picker__chip:hover {
+  background: var(--surface-2);
+  color: var(--text);
+}
+
+.picker__chip--selected,
+.picker__chip--selected:hover {
+  background: var(--amber);
+  color: #1d1400;
+  box-shadow: none;
+}
+
+.round-action {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 16px;
+  min-height: 56px;
+  margin: 18px 0 20px;
+}
+
+.play-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0 26px;
+  height: 52px;
+  border: 0;
+  border-radius: 14px;
+  background: var(--amber);
+  color: #1d1400;
+  font-family: var(--display);
+  font-weight: 700;
+  font-size: 20px;
+  letter-spacing: 0.01em;
+  cursor: pointer;
+  box-shadow: 0 10px 30px -12px rgba(255, 194, 61, 0.6);
+  transition: transform 120ms, box-shadow 120ms;
+}
+
+.play-button:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: 0 14px 34px -12px rgba(255, 194, 61, 0.75);
+}
+
+.play-button:disabled {
+  cursor: progress;
+  opacity: 0.75;
+}
+
+.play-button:disabled svg {
+  animation: spin 900ms linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.round-action__note {
+  margin: 0;
+  color: var(--muted);
+}
+
+.round-action__error {
+  margin: 0;
+  color: var(--loss);
+}
+
+.text-link {
+  color: var(--amber);
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.text-link:hover {
+  text-decoration: underline;
+}
+
+.text-link--quiet {
+  color: var(--muted);
+}
+
+/* The ten matches of the round */
+.fixtures {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--line);
+  background: var(--surface);
+  overflow: hidden;
+}
+
+.fixture {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 104px minmax(0, 1fr) 170px;
+  align-items: center;
+  gap: 18px;
+  padding: 0 22px;
+  height: 66px;
+  border-bottom: 1px solid var(--line);
+  transition: background 120ms;
+}
+
+.fixture:last-child {
+  border-bottom: 0;
+}
+
+.fixture:hover {
+  background: var(--surface-2);
+}
+
+.fixture__team {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+  font-weight: 600;
+  font-size: 15.5px;
+  color: var(--text);
+}
+
+.fixture__team--home {
+  justify-content: flex-end;
+  text-align: right;
+}
+
+.fixture__name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.team--won {
+  font-weight: 700;
+}
+
+.team--lost {
+  color: var(--muted);
+  font-weight: 500;
+}
+
+.score {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  height: 42px;
+  border-radius: 10px;
+  background: var(--bg);
+  border: 1px solid var(--line-strong);
+  font-family: var(--display);
+  font-weight: 800;
+  font-size: 26px;
+  font-variant-numeric: tabular-nums;
+}
+
+.score__dash {
+  color: var(--faint);
+  font-weight: 600;
+}
+
+.score--pending {
+  background: transparent;
+  border-style: dashed;
+  color: var(--faint);
+  font-size: 16px;
+  font-weight: 600;
+}
+
+/* Right after "Simulate": the scores turn over one by one */
+.score--reveal {
+  animation: reveal 520ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+  animation-delay: calc(var(--i) * 110ms);
+}
+
+@keyframes reveal {
+  0% {
+    opacity: 0;
+    transform: rotateX(90deg);
+    border-color: var(--amber);
+  }
+  60% {
+    border-color: var(--amber);
+  }
+}
+
+.fixture__referee {
+  color: var(--faint);
+  font-size: 13px;
+  text-align: right;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+@media (max-width: 1100px) {
+  .fixture {
+    grid-template-columns: minmax(0, 1fr) 96px minmax(0, 1fr);
+  }
+  .fixture__referee {
+    display: none;
+  }
+}
+
+@media (max-width: 640px) {
+  .fixture {
+    gap: 10px;
+    padding: 0 12px;
+    grid-template-columns: minmax(0, 1fr) 76px minmax(0, 1fr);
+  }
+  .fixture__team {
+    font-size: 14px;
+    gap: 8px;
+  }
+  .score {
+    font-size: 22px;
+    height: 38px;
   }
 }

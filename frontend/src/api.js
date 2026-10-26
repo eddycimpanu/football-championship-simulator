@@ -1,7 +1,7 @@
 // Every call to the Spring Boot backend goes through this file.
 
-async function get(path) {
-  const response = await fetch(`/api${path}`);
+async function request(method, path) {
+  const response = await fetch(`/api${path}`, { method });
   if (!response.ok) {
     throw new Error(`The server answered ${response.status} for ${path}`);
   }
@@ -9,5 +9,8 @@ async function get(path) {
 }
 
 export const api = {
-  table: () => get('/table'),
+  table: () => request('GET', '/table'),
+  season: () => request('GET', '/season'),
+  round: (number) => request('GET', `/rounds/${number}`),
+  playNextRound: () => request('POST', '/rounds/next'),
 };

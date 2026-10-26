@@ -2,7 +2,7 @@ import { NavLink } from 'react-router-dom';
 
 const LINKS = [
   { to: '/table', label: 'League table', ready: true },
-  { to: '/rounds', label: 'Rounds' },
+  { to: '/rounds', label: 'Rounds', ready: true },
   { to: '/players', label: 'Players' },
   { to: '/reports', label: 'Season reports' },
   { to: '/betting', label: 'Betting' },
