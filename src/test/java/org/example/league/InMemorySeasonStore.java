@@ -12,10 +12,12 @@ import java.util.Optional;
 
 // A fake database for the tests: SeasonService only knows the SeasonStore interface,
 // so the tests can give it this class instead of PostgreSQL.
-class InMemorySeasonStore implements SeasonStore {
+// Public because the web tests use it too. Like the database, every new season gets the next id,
+// and match ids keep counting across seasons.
+public class InMemorySeasonStore implements SeasonStore {
 
-    private static final int SEASON_ID = 1;
-
+    private int seasonId;
+    private int nextMatchId = 1;
     private String name;
     private long seed;
     private final Map<Integer, SavedMatch> schedule = new LinkedHashMap<>();
@@ -24,16 +26,16 @@ class InMemorySeasonStore implements SeasonStore {
 
     @Override
     public void saveNewSeason(Season season) {
-        season.assignId(SEASON_ID);
+        season.assignId(++seasonId);
         name = season.getName();
         seed = season.getSeed();
-        int nextId = 1;
+        schedule.clear();
         for (Round round : season.getRounds()) {
             for (Fixture fixture : round.getFixtures()) {
-                fixture.assignId(nextId);
-                schedule.put(nextId, new SavedMatch(nextId, fixture.getRound(), fixture.getHomeTeam().getId(),
+                int id = nextMatchId++;
+                fixture.assignId(id);
+                schedule.put(id, new SavedMatch(id, fixture.getRound(), fixture.getHomeTeam().getId(),
                         fixture.getAwayTeam().getId(), fixture.getReferee().getId(), null));
-                nextId++;
             }
         }
     }
@@ -55,7 +57,7 @@ class InMemorySeasonStore implements SeasonStore {
         if (name == null) {
             return Optional.empty();
         }
-        return Optional.of(Season.restore(SEASON_ID, name, seed, teams, referees, new ArrayList<>(schedule.values())));
+        return Optional.of(Season.restore(seasonId, name, seed, teams, referees, new ArrayList<>(schedule.values())));
     }
 
     // Pretends the program stopped before these matches were saved

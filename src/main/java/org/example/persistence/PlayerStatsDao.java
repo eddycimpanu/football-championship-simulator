@@ -16,10 +16,15 @@ public class PlayerStatsDao {
     }
 
     public record MatchLine(int round, String opponent, boolean home, String score, int minutes,
-                            int goals, int assists, Double rating) {
+                            int goals, int assists, Double rating, int matchId, String opponentShort) {
     }
 
-    public record ScorerLine(String player, String team, int goals, int assists, int minutes) {
+    public record ScorerLine(String player, String team, int goals, int assists, int minutes,
+                             int playerId, String teamShort) {
+    }
+
+    // One player's season for the team page
+    public record SquadLine(int playerId, int appearances, int minutes, int goals, int assists, Double averageRating) {
     }
 
     private static final String SEASON_TOTALS = """
@@ -44,8 +49,9 @@ public class PlayerStatsDao {
             """;
 
     private static final String MATCH_LINES = """
-            SELECT m.round,
+            SELECT m.round, m.id AS match_id,
                    CASE WHEN m.home_team_id = s.team_id THEN away.name ELSE home.name END AS opponent,
+                   CASE WHEN m.home_team_id = s.team_id THEN away.short_name ELSE home.short_name END AS opponent_short,
                    m.home_team_id = s.team_id AS at_home,
                    m.home_goals || '-' || m.away_goals AS score,
                    s.minutes_played, s.goals, s.assists, s.rating
@@ -58,17 +64,26 @@ public class PlayerStatsDao {
             """;
 
     private static final String TOP_SCORERS = """
-            SELECT p.first_name, p.last_name, t.name AS team,
+            SELECT p.id AS player_id, p.first_name, p.last_name, t.name AS team, t.short_name AS team_short,
                    SUM(s.goals) AS goals, SUM(s.assists) AS assists, SUM(s.minutes_played) AS minutes
             FROM player_match_stats s
             JOIN matches m ON m.id = s.match_id
             JOIN players p ON p.id = s.player_id
             JOIN teams t ON t.id = s.team_id
             WHERE m.season_id = ?
-            GROUP BY p.id, p.first_name, p.last_name, t.name
+            GROUP BY p.id, p.first_name, p.last_name, t.name, t.short_name
             HAVING SUM(s.goals) > 0
             ORDER BY goals DESC, minutes ASC
             LIMIT ?
+            """;
+
+    private static final String SQUAD_TOTALS = """
+            SELECT s.player_id, COUNT(*) AS appearances, SUM(s.minutes_played) AS minutes,
+                   SUM(s.goals) AS goals, SUM(s.assists) AS assists, ROUND(AVG(s.rating), 2) AS average_rating
+            FROM player_match_stats s
+            JOIN matches m ON m.id = s.match_id
+            WHERE m.season_id = ? AND s.team_id = ?
+            GROUP BY s.player_id
             """;
 
     private final ConnectionProvider connectionProvider;
@@ -108,7 +123,7 @@ public class PlayerStatsDao {
                     Double value = rs.wasNull() ? null : rating;
                     lines.add(new MatchLine(rs.getInt("round"), rs.getString("opponent"), rs.getBoolean("at_home"),
                             rs.getString("score"), rs.getInt("minutes_played"), rs.getInt("goals"),
-                            rs.getInt("assists"), value));
+                            rs.getInt("assists"), value, rs.getInt("match_id"), rs.getString("opponent_short")));
                 }
             }
         } catch (SQLException e) {
@@ -127,11 +142,32 @@ public class PlayerStatsDao {
                 while (rs.next()) {
                     String first = rs.getString("first_name");
                     String name = first == null || first.isBlank() ? rs.getString("last_name") : first + " " + rs.getString("last_name");
-                    lines.add(new ScorerLine(name, rs.getString("team"), rs.getInt("goals"), rs.getInt("assists"), rs.getInt("minutes")));
+                    lines.add(new ScorerLine(name, rs.getString("team"), rs.getInt("goals"), rs.getInt("assists"),
+                            rs.getInt("minutes"), rs.getInt("player_id"), rs.getString("team_short")));
                 }
             }
         } catch (SQLException e) {
             throw new DataAccessException("Could not load the top scorers of season " + seasonId, e);
+        }
+        return lines;
+    }
+
+    public List<SquadLine> findSquadTotals(int seasonId, int teamId) {
+        List<SquadLine> lines = new ArrayList<>();
+        try (Connection connection = connectionProvider.getConnection();
+             PreparedStatement statement = connection.prepareStatement(SQUAD_TOTALS)) {
+            statement.setInt(1, seasonId);
+            statement.setInt(2, teamId);
+            try (ResultSet rs = statement.executeQuery()) {
+                while (rs.next()) {
+                    double rating = rs.getDouble("average_rating");
+                    Double value = rs.wasNull() ? null : rating;
+                    lines.add(new SquadLine(rs.getInt("player_id"), rs.getInt("appearances"), rs.getInt("minutes"),
+                            rs.getInt("goals"), rs.getInt("assists"), value));
+                }
+            }
+        } catch (SQLException e) {
+            throw new DataAccessException("Could not load the squad of team " + teamId, e);
         }
         return lines;
     }

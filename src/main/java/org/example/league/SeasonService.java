@@ -13,7 +13,8 @@ public class SeasonService {
 
     public static final String DEFAULT_SEASON_NAME = "All-Star League 2026/27";
 
-    private final Season season;
+    // Replaced when the league is reset from the web page (volatile: every request thread sees the new one)
+    private volatile Season season;
     private final SeasonStore store;
 
     private SeasonService(Season season, SeasonStore store) {
@@ -33,6 +34,13 @@ public class SeasonService {
     public static Optional<SeasonService> continueLatestSeason(List<Team> teams, List<Referee> referees,
                                                                 SeasonStore store) {
         return store.loadLatestSeason(teams, referees).map(season -> new SeasonService(season, store));
+    }
+
+    // Starts the league again from round 1 with fresh players. The old season stays saved in the database.
+    public void restart(List<Team> teams, List<Referee> referees, long seed) {
+        Season fresh = Season.create(season.getName(), teams, referees, seed);
+        store.saveNewSeason(fresh);
+        season = fresh;
     }
 
     // Plays the next round: 10 matches, each saved on its own; then the players recover.

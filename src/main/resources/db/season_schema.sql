@@ -2,8 +2,15 @@
 -- Run this after schema.sql and seed.sql. It only touches the season tables,
 -- so teams, players, coaches and referees stay as they are.
 -- Safe to run again: it drops and recreates the season tables (all saved seasons are lost).
+-- After it, run betting_schema.sql to create the betting tables again.
 
 DROP VIEW IF EXISTS v_standings;
+-- The betting tables depend on seasons and matches (they are created by betting_schema.sql)
+DROP TABLE IF EXISTS ticket_selections CASCADE;
+DROP TABLE IF EXISTS tickets CASCADE;
+DROP TABLE IF EXISTS bets CASCADE;
+DROP TABLE IF EXISTS bettors CASCADE;
+DROP TABLE IF EXISTS match_odds CASCADE;
 DROP TABLE IF EXISTS player_season_state CASCADE;
 DROP TABLE IF EXISTS team_match_stats CASCADE;
 DROP TABLE IF EXISTS player_match_stats CASCADE;

@@ -13,18 +13,21 @@ public class SeasonReportDao {
 
     public record PlayerTotal(String player, String team, String position, String fieldRole, int appearances,
                               int minutes, int goals, int assists, int yellowCards, int redCards, int saves,
-                              int goalsConceded, int cleanSheets, Double averageRating) {
+                              int goalsConceded, int cleanSheets, Double averageRating, int playerId,
+                              String teamShort) {
     }
 
     public record TeamTotal(String team, int played, int goalsFor, int goalsAgainst, int cleanSheets,
                             double shotsPerMatch, int shotAccuracy, int possession, double cornersPerMatch,
-                            int yellowCards, int redCards) {
+                            int yellowCards, int redCards, int teamId, String teamShort) {
     }
 
-    public record MatchRecord(int round, String homeTeam, String awayTeam, int homeGoals, int awayGoals) {
+    public record MatchRecord(int round, String homeTeam, String awayTeam, int homeGoals, int awayGoals,
+                              int matchId, String homeShort, String awayShort) {
     }
 
-    public record HatTrick(int round, String player, String team, String opponent, int goals) {
+    public record HatTrick(int round, String player, String team, String opponent, int goals,
+                           int matchId, int playerId, String teamShort) {
     }
 
     // One row per player with his season totals. Every player query below starts from this CTE.
@@ -47,7 +50,8 @@ public class SeasonReportDao {
                 GROUP BY s.player_id, s.team_id
             ),
             players_with_totals AS (
-                SELECT TRIM(p.first_name || ' ' || p.last_name) AS player, t.name AS team, p.position,
+                SELECT TRIM(p.first_name || ' ' || p.last_name) AS player, t.name AS team, t.short_name AS team_short,
+                       p.position,
                        CASE WHEN p.position = 'GK' THEN 'GK'
                             WHEN p.position IN ('CB', 'LB', 'RB', 'LWB', 'RWB') THEN 'DEF'
                             WHEN p.position IN ('CDM', 'CM', 'CAM', 'LM', 'RM') THEN 'MID'
@@ -111,7 +115,7 @@ public class SeasonReportDao {
             """;
 
     private static final String TEAM_TOTALS = """
-            SELECT t.name AS team,
+            SELECT t.name AS team, t.id AS team_id, t.short_name AS team_short,
                    COUNT(*)                                                       AS played,
                    SUM(s.goals)                                                   AS goals_for,
                    SUM(CASE WHEN s.team_id = m.home_team_id THEN m.away_goals ELSE m.home_goals END) AS goals_against,
@@ -127,12 +131,13 @@ public class SeasonReportDao {
             JOIN matches m ON m.id = s.match_id
             JOIN teams t ON t.id = s.team_id
             WHERE m.season_id = ?
-            GROUP BY t.name
+            GROUP BY t.name, t.id, t.short_name
             ORDER BY goals_for DESC, goals_against
             """;
 
     private static final String MATCH_RECORD = """
-            SELECT m.round, h.name AS home_team, a.name AS away_team, m.home_goals, m.away_goals
+            SELECT m.round, m.id AS match_id, h.name AS home_team, a.name AS away_team, m.home_goals, m.away_goals,
+                   h.short_name AS home_short, a.short_name AS away_short
             FROM matches m
             JOIN teams h ON h.id = m.home_team_id
             JOIN teams a ON a.id = m.away_team_id
@@ -146,7 +151,8 @@ public class SeasonReportDao {
             MATCH_RECORD.formatted("m.home_goals + m.away_goals DESC, ABS(m.home_goals - m.away_goals)");
 
     private static final String HAT_TRICKS = """
-            SELECT m.round, TRIM(p.first_name || ' ' || p.last_name) AS player, t.name AS team,
+            SELECT m.round, m.id AS match_id, p.id AS player_id, t.short_name AS team_short,
+                   TRIM(p.first_name || ' ' || p.last_name) AS player, t.name AS team,
                    CASE WHEN s.team_id = m.home_team_id THEN a.name ELSE h.name END AS opponent, s.goals
             FROM player_match_stats s
             JOIN matches m ON m.id = s.match_id
@@ -188,7 +194,8 @@ public class SeasonReportDao {
         return query(TEAM_TOTALS, "the team statistics", rs -> new TeamTotal(rs.getString("team"),
                 rs.getInt("played"), rs.getInt("goals_for"), rs.getInt("goals_against"), rs.getInt("clean_sheets"),
                 rs.getDouble("shots_per_match"), rs.getInt("shot_accuracy"), rs.getInt("possession"),
-                rs.getDouble("corners_per_match"), rs.getInt("yellow_cards"), rs.getInt("red_cards")), seasonId);
+                rs.getDouble("corners_per_match"), rs.getInt("yellow_cards"), rs.getInt("red_cards"),
+                rs.getInt("team_id"), rs.getString("team_short")), seasonId);
     }
 
     public List<MatchRecord> findBiggestWins(int seasonId, int limit) {
@@ -201,7 +208,8 @@ public class SeasonReportDao {
 
     public List<HatTrick> findHatTricks(int seasonId) {
         return query(HAT_TRICKS, "the hat-tricks", rs -> new HatTrick(rs.getInt("round"), rs.getString("player"),
-                rs.getString("team"), rs.getString("opponent"), rs.getInt("goals")), seasonId);
+                rs.getString("team"), rs.getString("opponent"), rs.getInt("goals"), rs.getInt("match_id"),
+                rs.getInt("player_id"), rs.getString("team_short")), seasonId);
     }
 
     // ----- Mapping rows -----
@@ -217,12 +225,14 @@ public class SeasonReportDao {
         return new PlayerTotal(rs.getString("player"), rs.getString("team"), rs.getString("position"),
                 rs.getString("field_role"), rs.getInt("appearances"), rs.getInt("minutes"), rs.getInt("goals"),
                 rs.getInt("assists"), rs.getInt("yellow_cards"), rs.getInt("red_cards"), rs.getInt("saves"),
-                rs.getInt("goals_conceded"), rs.getInt("clean_sheets"), averageRating);
+                rs.getInt("goals_conceded"), rs.getInt("clean_sheets"), averageRating, rs.getInt("player_id"),
+                rs.getString("team_short"));
     }
 
     private static MatchRecord matchRecord(ResultSet rs) throws SQLException {
         return new MatchRecord(rs.getInt("round"), rs.getString("home_team"), rs.getString("away_team"),
-                rs.getInt("home_goals"), rs.getInt("away_goals"));
+                rs.getInt("home_goals"), rs.getInt("away_goals"), rs.getInt("match_id"), rs.getString("home_short"),
+                rs.getString("away_short"));
     }
 
     // Runs a SELECT with int parameters (in order) and turns every row into an object

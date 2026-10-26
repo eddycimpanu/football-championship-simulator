@@ -9,6 +9,7 @@ import org.junit.jupiter.api.Test;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -53,6 +54,22 @@ class SeasonServiceTest {
         assertEquals(380, store.matchesSaved);
         service.getTable().getStandings().forEach(row -> assertEquals(38, row.getPlayed()));
         assertThrows(IllegalStateException.class, service::playNextRound);
+    }
+
+    @Test
+    void restartingStartsTheLeagueAgainFromRoundOne() {
+        service.playNextRound();
+        service.playNextRound();
+        Season old = service.getSeason();
+
+        service.restart(TestData.league(20, 78), referees, 7);
+
+        assertNotSame(old, service.getSeason());
+        assertEquals(2, service.getSeason().getId());
+        assertEquals(380, store.getSchedule().size());          // the new schedule was saved
+        assertEquals("Test League", service.getSeason().getName());
+        assertEquals(0, service.getSeason().getRoundsPlayed());
+        assertEquals(1, service.getSeason().getCurrentRoundNumber());
     }
 
     @Test

@@ -94,6 +94,11 @@ public class Season {
         return getNextRound().map(Round::getNumber).orElse(rounds.size());
     }
 
+    // The last round whose ten matches have all been played (0 before the first round)
+    public int getRoundsPlayed() {
+        return rounds.stream().filter(Round::isPlayed).mapToInt(Round::getNumber).max().orElse(0);
+    }
+
     public boolean isFinished() {
         return getNextRound().isEmpty();
     }

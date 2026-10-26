@@ -41,9 +41,10 @@
             <version>42.7.13</version>
         </dependency>
 
+        <!-- JUnit 5 + MockMvc (HTTP requests to the controllers without starting a server) + JsonPath -->
         <dependency>
-            <groupId>org.junit.jupiter</groupId>
-            <artifactId>junit-jupiter</artifactId>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-test</artifactId>
             <scope>test</scope>
         </dependency>
     </dependencies>

@@ -13,11 +13,13 @@ import java.util.Optional;
 // It works for every match of the season, also the ones played before the program was restarted.
 public class MatchReportDao {
 
-    public record MatchInfo(int id, int round, String homeTeam, String awayTeam, boolean played,
-                            int homeGoals, int awayGoals, String referee) {
+    public record MatchInfo(int id, int round, String homeTeam, String homeShort, String awayTeam, String awayShort,
+                            boolean played, int homeGoals, int awayGoals, String referee) {
     }
 
-    public record EventLine(int minute, int addedTime, String description) {
+    // side = "home", "away" or null (kick-off, half-time...); player = the main player of the event, if any
+    public record EventLine(int minute, int addedTime, String type, String side, String player, boolean key,
+                            String description) {
     }
 
     public record TeamStatsLine(String team, int goals, int shots, int shotsOnTarget, int corners, int fouls,
@@ -31,23 +33,33 @@ public class MatchReportDao {
 
     private static final String FULL_NAME = "TRIM(%1$s.first_name || ' ' || %1$s.last_name)";
 
-    // A pair of teams meets only once at each ground, so home + away finds exactly one match
-    private static final String FIND_MATCH = """
-            SELECT m.id, m.round, h.name AS home_team, a.name AS away_team, m.status, m.home_goals, m.away_goals,
+    private static final String SELECT_MATCH = """
+            SELECT m.id, m.round, h.name AS home_team, h.short_name AS home_short,
+                   a.name AS away_team, a.short_name AS away_short, m.status, m.home_goals, m.away_goals,
                    %s AS referee
             FROM matches m
             JOIN teams h ON h.id = m.home_team_id
             JOIN teams a ON a.id = m.away_team_id
             LEFT JOIN referees r ON r.id = m.referee_id
-            WHERE m.season_id = ? AND m.home_team_id = ? AND m.away_team_id = ?
             """.formatted(FULL_NAME.formatted("r"));
 
+    // A pair of teams meets only once at each ground, so home + away finds exactly one match
+    private static final String FIND_MATCH = SELECT_MATCH
+            + "WHERE m.season_id = ? AND m.home_team_id = ? AND m.away_team_id = ?";
+
+    private static final String FIND_MATCH_BY_ID = SELECT_MATCH + "WHERE m.id = ?";
+
     private static final String EVENTS = """
-            SELECT minute, added_time, description
-            FROM match_events
-            WHERE match_id = ? AND (is_key_event OR NOT ?)
-            ORDER BY id
-            """;
+            SELECT e.minute, e.added_time, e.event_type, e.is_key_event, e.description,
+                   CASE WHEN e.team_id = m.home_team_id THEN 'home'
+                        WHEN e.team_id = m.away_team_id THEN 'away' END AS side,
+                   %s AS player
+            FROM match_events e
+            JOIN matches m ON m.id = e.match_id
+            LEFT JOIN players p ON p.id = e.player_id
+            WHERE e.match_id = ? AND (e.is_key_event OR NOT ?)
+            ORDER BY e.id
+            """.formatted(FULL_NAME.formatted("p"));
 
     // Home team first
     private static final String TEAM_STATS = """
@@ -85,17 +97,26 @@ public class MatchReportDao {
     }
 
     public Optional<MatchInfo> findMatch(int seasonId, int homeTeamId, int awayTeamId) {
+        return findOne(FIND_MATCH, seasonId, homeTeamId, awayTeamId);
+    }
+
+    public Optional<MatchInfo> findById(int matchId) {
+        return findOne(FIND_MATCH_BY_ID, matchId);
+    }
+
+    private Optional<MatchInfo> findOne(String sql, int... parameters) {
         try (Connection connection = connectionProvider.getConnection();
-             PreparedStatement statement = connection.prepareStatement(FIND_MATCH)) {
-            statement.setInt(1, seasonId);
-            statement.setInt(2, homeTeamId);
-            statement.setInt(3, awayTeamId);
+             PreparedStatement statement = connection.prepareStatement(sql)) {
+            for (int i = 0; i < parameters.length; i++) {
+                statement.setInt(i + 1, parameters[i]);
+            }
             try (ResultSet resultSet = statement.executeQuery()) {
                 if (!resultSet.next()) {
                     return Optional.empty();
                 }
                 return Optional.of(new MatchInfo(resultSet.getInt("id"), resultSet.getInt("round"),
-                        resultSet.getString("home_team"), resultSet.getString("away_team"),
+                        resultSet.getString("home_team"), resultSet.getString("home_short"),
+                        resultSet.getString("away_team"), resultSet.getString("away_short"),
                         "PLAYED".equals(resultSet.getString("status")),
                         resultSet.getInt("home_goals"), resultSet.getInt("away_goals"),
                         resultSet.getString("referee")));
@@ -114,6 +135,8 @@ public class MatchReportDao {
             try (ResultSet resultSet = statement.executeQuery()) {
                 while (resultSet.next()) {
                     events.add(new EventLine(resultSet.getInt("minute"), resultSet.getInt("added_time"),
+                            resultSet.getString("event_type"), resultSet.getString("side"),
+                            resultSet.getString("player"), resultSet.getBoolean("is_key_event"),
                             resultSet.getString("description")));
                 }
             }
