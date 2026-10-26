@@ -16,7 +16,20 @@ const SPOTS = [
   [20, 20], [50, 15], [80, 20],
 ];
 
-function Pitch({ players }) {
+// Left to right as you look at the pitch (the attack goes up): left-sided players on the left
+const SIDE = { LB: 0, LWB: 0, LM: 0, LW: 0, RB: 2, RWB: 2, RM: 2, RW: 2 };
+const LINES = [[0, 1], [1, 5], [5, 8], [8, 11]];   // goalkeeper, defenders, midfielders, forwards
+
+// Within each line the players are sorted by side, so a right winger never ends up on the left wing
+function bySide(players) {
+  return LINES.flatMap(([from, to]) => players.slice(from, to)
+    .map((p, i) => ({ p, i }))
+    .sort((a, b) => (SIDE[a.p.position] ?? 1) - (SIDE[b.p.position] ?? 1) || a.i - b.i)
+    .map(({ p }) => p));
+}
+
+function Pitch({ players: unsorted }) {
+  const players = bySide(unsorted);
   return (
     <div className="pitch" role="img" aria-label="Team of the season on the pitch">
       <svg className="pitch__lines" viewBox="0 0 100 140" preserveAspectRatio="none" aria-hidden="true">
