@@ -4,11 +4,19 @@ import org.example.engine.random.RandomProvider;
 import org.example.model.Referee;
 import org.example.model.Team;
 
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
+import java.util.TreeMap;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
 public class Season {
 
+    private static final int NOT_SAVED = 0;
+
+    private int id = NOT_SAVED;
     private final String name;
     private final long seed;
     private final RandomProvider random;
@@ -26,9 +34,56 @@ public class Season {
         new RefereeAssigner().assign(rounds, this.referees, random);
     }
 
+    private Season(int id, String name, long seed, List<Team> teams, List<Referee> referees,
+                   List<Round> rounds, RandomProvider random) {
+        this.id = id;
+        this.name = name;
+        this.seed = seed;
+        this.random = random;
+        this.teams = List.copyOf(teams);
+        this.referees = List.copyOf(referees);
+        this.rounds = List.copyOf(rounds);
+    }
+
     // A new season: the schedule and the referees are decided at once, from the seed.
     public static Season create(String name, List<Team> teams, List<Referee> referees, long seed) {
         return new Season(name, seed, teams, referees);
+    }
+
+    // A season saved in the database: the schedule, the referees and the scores come back as they were.
+    // The random generator is restarted from the seed and the number of matches played, so continuing
+    // a season is still reproducible (but not the same as playing it in one run).
+    public static Season restore(int id, String name, long seed, List<Team> teams, List<Referee> referees,
+                                 List<SavedMatch> schedule) {
+        Map<Integer, Team> teamsById = teams.stream().collect(Collectors.toMap(Team::getId, Function.identity()));
+        Map<Integer, Referee> refereesById = referees.stream().collect(Collectors.toMap(Referee::getId, Function.identity()));
+
+        Map<Integer, List<Fixture>> fixturesByRound = new TreeMap<>();
+        long played = 0;
+        for (SavedMatch saved : schedule) {
+            Fixture fixture = new Fixture(saved.round(), find(teamsById, saved.homeTeamId(), "team"),
+                    find(teamsById, saved.awayTeamId(), "team"));
+            fixture.assignId(saved.id());
+            fixture.assignReferee(find(refereesById, saved.refereeId(), "referee"));
+            if (saved.isPlayed()) {
+                fixture.restoreScore(saved.score());
+                played++;
+            }
+            fixturesByRound.computeIfAbsent(saved.round(), round -> new ArrayList<>()).add(fixture);
+        }
+
+        List<Round> rounds = fixturesByRound.entrySet().stream()
+                .map(entry -> new Round(entry.getKey(), entry.getValue()))
+                .toList();
+        return new Season(id, name, seed, teams, referees, rounds, new RandomProvider(seed + played));
+    }
+
+    private static <T> T find(Map<Integer, T> byId, int id, String what) {
+        T found = byId.get(id);
+        if (found == null) {
+            throw new IllegalStateException("The saved season uses a " + what + " that does not exist: id " + id);
+        }
+        return found;
     }
 
     public Optional<Round> getNextRound() {
@@ -56,7 +111,8 @@ public class Season {
         rounds.stream()
                 .flatMap(round -> round.getFixtures().stream())
                 .filter(Fixture::isPlayed)
-                .forEach(fixture -> table.record(fixture.getResult()));
+                .forEach(fixture -> table.record(fixture.getHomeTeam(), fixture.getAwayTeam(),
+                        fixture.getScore().home(), fixture.getScore().away()));
         return table;
     }
 
@@ -67,6 +123,15 @@ public class Season {
                 .toList();
     }
 
+    // The id the database gave this season. Set once, when the season is saved.
+    public void assignId(int id) {
+        if (this.id != NOT_SAVED) {
+            throw new IllegalStateException("This season already has the id " + this.id);
+        }
+        this.id = id;
+    }
+
+    public int getId() { return id; }
     public String getName() { return name; }
     public long getSeed() { return seed; }
     public RandomProvider getRandom() { return random; }

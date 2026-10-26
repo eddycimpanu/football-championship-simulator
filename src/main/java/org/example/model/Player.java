@@ -110,6 +110,22 @@ public class Player extends Person {
         return getStatus() == PlayerStatus.AVAILABLE;
     }
 
+    // ----- Saved seasons -----
+
+    // Puts back the fitness, cards, bans and injuries saved in the database when a season is continued.
+    public void restoreState(int condition, int yellowCardsAccumulated, int matchesSuspended, int matchesInjured) {
+        if (condition < 0 || condition > MAX_CONDITION) {
+            throw new IllegalArgumentException("Condition must be between 0 and " + MAX_CONDITION + ", got " + condition);
+        }
+        if (yellowCardsAccumulated < 0 || matchesSuspended < 0 || matchesInjured < 0) {
+            throw new IllegalArgumentException("Cards, bans and injuries cannot be negative");
+        }
+        this.condition = condition;
+        this.yellowCardsAccumulated = yellowCardsAccumulated;
+        this.matchesSuspended = matchesSuspended;
+        this.matchesInjured = matchesInjured;
+    }
+
     // ----- Getters -----
 
     public int getShirtNumber() { return shirtNumber; }
