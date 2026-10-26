@@ -28,4 +28,6 @@ export const api = {
   reports: () => request('GET', '/reports'),
   bettingMe: () => request('GET', '/betting/me'),
   placeTicket: (stake, selections) => request('POST', '/tickets', { stake, selections }),
+  agents: () => request('GET', '/agents'),
+  agentTickets: (round) => request('GET', `/rounds/${round}/agent-tickets`),
 };

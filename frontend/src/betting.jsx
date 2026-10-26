@@ -41,6 +41,15 @@ export function ticketOdds(odds) {
   return Math.round(odds.reduce((product, o) => product * Number(o), 1) * 100) / 100;
 }
 
+// A short label for one selection: "JUV win", "MIL–JUV draw", "MCI–POR Under 2.5"
+export function pickLabel(selection) {
+  const match = `${selection.homeShort}–${selection.awayShort}`;
+  if (selection.selection === 'HOME') return `${selection.homeShort} win`;
+  if (selection.selection === 'AWAY') return `${selection.awayShort} win`;
+  if (selection.selection === 'DRAW') return `${match} draw`;
+  return `${match} ${SHORT_LABELS[selection.selection]}`;
+}
+
 export function BettingProvider({ children }) {
   const [me, setMe] = useState(null);
   const [slip, setSlip] = useState([]);   // [{ matchId, selection, odds, homeTeam, awayTeam, round }]

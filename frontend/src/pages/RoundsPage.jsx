@@ -5,6 +5,7 @@ import TeamBadge from '../components/TeamBadge.jsx';
 import LiveRound from '../components/LiveRound.jsx';
 import OddsStrip from '../components/OddsStrip.jsx';
 import BetSlip from '../components/BetSlip.jsx';
+import AgentTickets from '../components/AgentTickets.jsx';
 import { formatMoney, useBetting } from '../betting.jsx';
 
 // /rounds opens the next round to play (or the last one when the season is over)
@@ -157,6 +158,7 @@ export default function RoundsPage() {
   const betting = useBetting();
   const [liveBets, setLiveBets] = useState([]);   // your bets on the round being played live
   const [betResult, setBetResult] = useState(null);
+  const [agentTickets, setAgentTickets] = useState([]);
   const [oddsLoading, setOddsLoading] = useState(false);
 
   useEffect(() => {
@@ -167,6 +169,7 @@ export default function RoundsPage() {
     setPlayError(null);
     setOdds(null);
     setBetResult(null);
+    setAgentTickets([]);
     Promise.all([api.season(), api.round(number)])
       .then(([seasonData, roundData]) => {
         setSeason(seasonData);
@@ -183,6 +186,8 @@ export default function RoundsPage() {
         if (cancelled) return;
         const byMatch = Object.fromEntries(data.matches.map((m) => [m.matchId, m]));
         setOdds({ open: data.open, byMatch });
+        // The agents bet when the odds are fixed, so their tickets are ready now
+        return api.agentTickets(number).then((t) => !cancelled && setAgentTickets(t));
       })
       .catch(() => !cancelled && setOdds(null))
       .finally(() => !cancelled && setOddsLoading(false));
@@ -200,6 +205,7 @@ export default function RoundsPage() {
       const played = await api.playNextRound();
       setLiveBets(myBets);
       betting.clearRound(number);
+      setAgentTickets(await api.agentTickets(number));
       // The round is already decided and saved; now it is replayed on screen
       const details = await Promise.all(played.matches.map((m) => api.match(m.id)));
       setRound(played);
@@ -307,7 +313,8 @@ export default function RoundsPage() {
       {betResult && <BetResult result={betResult} />}
 
       {live ? (
-        <LiveRound details={live} onFinish={finishLive} myBets={liveBets} onBetsSettled={setBetResult} />
+        <LiveRound details={live} onFinish={finishLive} myBets={liveBets} onBetsSettled={setBetResult}
+          agentTickets={agentTickets} />
       ) : (
         <div className={canBet ? 'betting-layout' : ''}>
           <ol className="fixtures">
@@ -319,6 +326,8 @@ export default function RoundsPage() {
           {canBet && <BetSlip round={number} openTickets={(betting.me?.open ?? []).filter((t) => t.round === number)} />}
         </div>
       )}
+
+      {!liveNow && <AgentTickets tickets={agentTickets} />}
     </>
   );
 }

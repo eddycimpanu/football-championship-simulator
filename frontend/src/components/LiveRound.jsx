@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import TeamBadge from './TeamBadge.jsx';
 import EventIcon from './EventIcon.jsx';
 import { SHORT_LABELS, formatMoney, selectionWins } from '../betting.jsx';
+import AgentAvatar from './AgentAvatar.jsx';
 
 // myBets = your tickets on this round, each with its selections
 
@@ -82,7 +83,17 @@ function matchState(m, v, halfTimeAt) {
   return { home, away, status, last: happened.at(-1) ?? null, goals: goals.length };
 }
 
-export default function LiveRound({ details, onFinish, myBets = [], onBetsSettled }) {
+function groupByAgent(agentTickets) {
+  const groups = [];
+  agentTickets.forEach(({ key, name, ticket }) => {
+    const group = groups.find((g) => g.key === key);
+    if (group) group.tickets.push(ticket);
+    else groups.push({ key, name, tickets: [ticket] });
+  });
+  return groups;
+}
+
+export default function LiveRound({ details, onFinish, myBets = [], onBetsSettled, agentTickets = [] }) {
   const timeline = useMemo(() => buildTimeline(details), [details]);
   const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
   const [v, setV] = useState(reduced ? timeline.end : 0);
@@ -286,6 +297,30 @@ export default function LiveRound({ details, onFinish, myBets = [], onBetsSettle
                 </div>
               );
             })}
+          </section>
+        )}
+        {agentTickets.length > 0 && (
+          <section className="panel live-agents" aria-label="The agents">
+            <h2 className="panel__title">The agents</h2>
+            <ul className="live-agents__list">
+              {groupByAgent(agentTickets).map(({ key, name, tickets }) => {
+                // One ticket: how many of its selections are winning. Several: how many tickets are paying.
+                const paying = tickets.filter((t) => t.selections.every((sel) => isWinning(sel))).length;
+                const single = tickets.length === 1 ? tickets[0] : null;
+                const right = single ? single.selections.filter((sel) => isWinning(sel)).length : paying;
+                const total = single ? single.selections.length : tickets.length;
+                return (
+                  <li key={key} className={`live-agent ${paying > 0 ? 'live-agent--up' : 'live-agent--down'}`}>
+                    <AgentAvatar agentKey={key} size={26} />
+                    <span className="live-agent__name">{name}</span>
+                    <span className="live-agent__count">
+                      {right}/{total}
+                      {!single && <span className="live-agent__unit"> tickets</span>}
+                    </span>
+                  </li>
+                );
+              })}
+            </ul>
           </section>
         )}
         <aside className="panel feed" aria-label="Goals and red cards">
