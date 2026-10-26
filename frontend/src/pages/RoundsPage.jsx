@@ -1,7 +1,8 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Link, Navigate, useNavigate, useParams } from 'react-router-dom';
 import { api } from '../api.js';
 import TeamBadge from '../components/TeamBadge.jsx';
+import LiveRound from '../components/LiveRound.jsx';
 
 // /rounds opens the next round to play (or the last one when the season is over)
 export function CurrentRoundRedirect() {
@@ -120,9 +121,13 @@ export default function RoundsPage() {
   const [playing, setPlaying] = useState(false);
   const [playError, setPlayError] = useState(null);
   const [justPlayed, setJustPlayed] = useState(false);
+  const [live, setLive] = useState(null);   // the ten match reports while the round plays on screen
+  const [replayed, setReplayed] = useState(false);
 
   useEffect(() => {
     setRound(null);
+    setLive(null);
+    setReplayed(false);
     setJustPlayed(false);
     setPlayError(null);
     Promise.all([api.season(), api.round(number)])
@@ -138,8 +143,11 @@ export default function RoundsPage() {
     setPlayError(null);
     try {
       const played = await api.playNextRound();
+      // The round is already decided and saved; now it is replayed on screen
+      const details = await Promise.all(played.matches.map((m) => api.match(m.id)));
       setRound(played);
-      setJustPlayed(true);
+      setLive(details);
+      setReplayed(true);
       setSeason(await api.season());
     } catch {
       setPlayError('The round could not be simulated. Check that WebApplication is running and try again.');
@@ -148,10 +156,13 @@ export default function RoundsPage() {
     }
   }
 
+  const finishLive = useCallback(() => setJustPlayed(true), []);
+
   if (error) return <ServerDown />;
   if (!season || !round) return <div className="loading">Loading round {number}…</div>;
 
-  const status = round.played ? 'Played' : round.next ? 'Next up' : 'Still to come';
+  const liveNow = live && !justPlayed;
+  const status = liveNow ? 'Live' : round.played ? 'Played' : round.next ? 'Next up' : 'Still to come';
   const hasPrevious = number > 1;
   const hasNext = number < season.totalRounds;
 
@@ -160,7 +171,7 @@ export default function RoundsPage() {
       <header className="round-head">
         <div>
           <p className="round-head__status">
-            <span className={`status-dot status-dot--${round.played ? 'played' : round.next ? 'next' : 'later'}`} />
+            <span className={`status-dot status-dot--${liveNow ? 'live' : round.played ? 'played' : round.next ? 'next' : 'later'}`} />
             {status}
           </p>
           <h1 className="round-head__title">Round {number}</h1>
@@ -190,10 +201,15 @@ export default function RoundsPage() {
       <RoundPicker season={season} selected={number} />
 
       <div className="round-action">
-        {round.next && (
+        {round.next && !live && (
           <button type="button" className="play-button" onClick={simulate} disabled={playing}>
             <BallIcon />
             {playing ? `Playing round ${number}…` : `Simulate round ${number}`}
+          </button>
+        )}
+        {live && justPlayed && (
+          <button type="button" className="ghost-button" onClick={() => setLive(null)}>
+            Show the results list
           </button>
         )}
         {round.played && justPlayed && season.nextRound && (
@@ -206,7 +222,7 @@ export default function RoundsPage() {
             </Link>
           </>
         )}
-        {round.played && !justPlayed && <p className="round-action__note">All 10 matches played.</p>}
+        {round.played && !justPlayed && !live && <p className="round-action__note">All 10 matches played.</p>}
         {!round.played && !round.next && (
           <p className="round-action__note">
             Not played yet. Next up is round {season.nextRound}.{' '}
@@ -219,11 +235,15 @@ export default function RoundsPage() {
         {playError && <p className="round-action__error" role="alert">{playError}</p>}
       </div>
 
-      <ol className="fixtures">
-        {round.matches.map((match, i) => (
-          <MatchRow key={match.id} match={match} index={i} justPlayed={justPlayed} />
-        ))}
-      </ol>
+      {live ? (
+        <LiveRound details={live} onFinish={finishLive} />
+      ) : (
+        <ol className="fixtures">
+          {round.matches.map((match, i) => (
+            <MatchRow key={match.id} match={match} index={i} justPlayed={justPlayed && !replayed} />
+          ))}
+        </ol>
+      )}
     </>
   );
 }
